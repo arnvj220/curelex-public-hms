@@ -1,0 +1,233 @@
+/* ============================================
+   ROOT WIDTH RESET
+   Vite's default #root/.App rule (max-width:1280px;
+   margin:0 auto; padding:2rem; text-align:center)
+   is still active in most projects and squeezes
+   every page — including this dashboard — into a
+   narrow centered column. Kill it globally so
+   pages can control their own width.
+   ============================================ */
+#root, .App {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.pd-layout { width: 100%; }
+
+/* ============================================
+   SOLO DOCTOR DASHBOARD — MISSING STYLES
+   Append this block to hms-react/src/index.css
+   (e.g. right before the "DARK MODE TEXT
+   VISIBILITY FIX" section at the bottom).
+
+   Everything here is scoped so it can't collide
+   with the existing HMS/Curelex classes already
+   in the file — the modal overrides in particular
+   are nested under .pd-layout so other pages that
+   use .modal / .modal-overlay are unaffected.
+   ============================================ */
+
+.pd-layout { min-height: 100vh; background: var(--bg-secondary); }
+
+/* ── Topbar ───────────────────────────────── */
+.pd-topbar {
+  position: sticky; top: 0; z-index: var(--z-sticky);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg-primary); padding: 12px 28px;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap; gap: 12px;
+}
+.pd-topbar__right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.pd-topbar__location {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  background: var(--bg-secondary); padding: 8px 14px; border-radius: var(--radius-full);
+  cursor: pointer; border: 1px solid var(--border-color);
+}
+.pd-topbar__location i:first-child { color: var(--primary-color); }
+
+/* ── User menu ────────────────────────────── */
+.pd-user-menu { position: relative; }
+.pd-user-menu__trigger {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 6px 10px; border-radius: var(--radius-full); border: 1px solid var(--border-color);
+  transition: background var(--transition-fast);
+}
+.pd-user-menu__trigger:hover { background: var(--bg-secondary); }
+.pd-user-menu__avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--gradient-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px; flex-shrink: 0;
+}
+.pd-user-menu__name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+.pd-user-dropdown-overlay { position: fixed; inset: 0; z-index: 998; }
+.pd-user-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0; width: 240px;
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);
+  padding: 8px; z-index: 999;
+}
+.pd-user-dropdown__info { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.pd-user-dropdown__info strong { font-size: 13px; color: var(--text-primary); }
+.pd-user-dropdown__info span { font-size: 11px; color: var(--text-secondary); }
+.pd-user-dropdown__divider { height: 1px; background: var(--border-color); margin: 6px 0; }
+.pd-user-dropdown__item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px;
+  border-radius: 8px; background: transparent; border: none; text-align: left;
+  cursor: pointer; font-size: 13px; color: var(--text-primary); font-weight: 500;
+  transition: background var(--transition-fast);
+}
+.pd-user-dropdown__item i { width: 16px; color: var(--text-secondary); }
+.pd-user-dropdown__item:hover { background: var(--bg-secondary); }
+.pd-user-dropdown__item.active { background: rgba(0,168,232,0.1); color: var(--primary-color); }
+.pd-user-dropdown__item.active i { color: var(--primary-color); }
+.pd-user-dropdown__item--danger { color: #dc2626; }
+.pd-user-dropdown__item--danger i { color: #dc2626; }
+.pd-user-dropdown__item--danger:hover { background: #fee2e2; }
+
+/* ── Layout body ──────────────────────────── */
+.pd-below-header { display: flex; width: 100%; }
+.pd-main { flex: 1; min-width: 0; width: 100%; }
+.pd-body { padding: 24px 32px 48px; width: 100%; box-sizing: border-box; }
+
+/* ── Stat cards ───────────────────────────── */
+.pd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.pd-stat-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg); padding: 18px 20px;
+  display: flex; align-items: center; gap: 14px;
+  box-shadow: var(--shadow-sm); transition: all var(--transition-base);
+}
+.pd-stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.pd-stat-card__icon {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: #fff; flex-shrink: 0;
+}
+.pd-stat-card__icon--blue   { background: linear-gradient(135deg,#2563eb,#1d4ed8); }
+.pd-stat-card__icon--green  { background: linear-gradient(135deg,#10b981,#059669); }
+.pd-stat-card__icon--orange { background: linear-gradient(135deg,#f59e0b,#d97706); }
+.pd-stat-card__icon--purple { background: linear-gradient(135deg,#7c3aed,#5b21b6); }
+.pd-stat-card__num { font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
+.pd-stat-card__label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+
+/* ── Dashboard grid + cards ───────────────── */
+.dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.dashboard-card.full-width { grid-column: 1 / -1; }
+.dashboard-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.dashboard-card .card-header {
+  display: flex; align-items: center; gap: 10px; padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px; font-weight: 700; color: var(--text-primary);
+}
+.dashboard-card .card-header i { color: var(--primary-color); font-size: 15px; }
+.dashboard-card .card-header h3 { font-size: 15px; margin: 0; }
+.dashboard-card .card-body { padding: 18px 20px; flex: 1; }
+
+/* ── Lists: patients / prescriptions / requests ── */
+.patients-list, .prescription-list, .request-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.patient-item, .prescription-item, .request-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-secondary);
+}
+.patient-avatar, .request-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--gradient-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 14px;
+}
+.prescription-icon {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: #fef3c7; color: #d97706;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 14px;
+}
+.patient-info, .prescription-info, .request-info { flex: 1; min-width: 0; }
+.patient-info h4, .prescription-info h4, .request-info h4 {
+  font-size: 13px; margin: 0 0 2px; color: var(--text-primary);
+}
+.patient-info p, .prescription-info p, .request-info p {
+  font-size: 12px; margin: 0; color: var(--text-secondary);
+}
+.request-time { font-size: 11px; color: var(--text-light); display: block; margin-top: 2px; }
+.request-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.prescription-item.pending { border-color: #fde68a; background: #fffbeb; }
+
+/* ── Profile summary card ─────────────────── */
+.profile-summary { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.profile-avatar-large {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--gradient-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; flex-shrink: 0; overflow: hidden;
+}
+.profile-details h4 { font-size: 15px; margin: 0 0 2px; color: var(--text-primary); }
+.profile-details .specialization { font-size: 12px; color: var(--primary-color); font-weight: 600; margin: 0 0 4px; }
+.profile-details .hospital {
+  font-size: 12px; color: var(--text-secondary); margin: 0 0 8px;
+  display: flex; align-items: center; gap: 5px;
+}
+.profile-stats { display: flex; gap: 18px; }
+.profile-stats .number { display: block; font-size: 16px; font-weight: 800; color: var(--text-primary); }
+.profile-stats .label { display: block; font-size: 11px; color: var(--text-secondary); }
+
+/* ── Modal overrides — scoped to .pd-layout only ──
+   so PatientRecordModal / PrescriptionModal render
+   correctly without touching .modal on other pages */
+.pd-layout .modal {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pd-layout .modal.active { display: flex; }
+.pd-layout .modal .modal-overlay {
+  position: absolute; inset: 0;
+  background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(3px);
+}
+.pd-layout .modal .modal-container {
+  position: relative; background: var(--bg-card);
+  border-radius: var(--radius-xl); width: 100%;
+  box-shadow: var(--shadow-xl); border: 1px solid var(--border-color);
+}
+.pd-layout .modal .modal-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); border: none; font-size: 20px;
+  cursor: pointer; color: #fff; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition-fast);
+}
+.pd-layout .modal .modal-close:hover { background: rgba(255,255,255,0.35); transform: rotate(90deg); }
+.pd-layout .appointment-modal-header {
+  background: var(--gradient-primary); color: #fff;
+  padding: 24px 28px 20px; border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  text-align: center; position: relative;
+}
+.pd-layout .appointment-modal-header i { font-size: 28px; margin-bottom: 8px; display: block; }
+.pd-layout .appointment-modal-header h2 { margin: 0 0 4px; font-size: 18px; color: #fff; }
+.pd-layout .appointment-modal-header p { margin: 0; font-size: 12px; opacity: 0.9; }
+
+/* ── Responsive ───────────────────────────── */
+@media (max-width: 1024px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .pd-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .pd-body { padding: 16px; }
+  .pd-topbar { padding: 10px 16px; }
+  .pd-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pd-stat-card { padding: 14px; }
+}

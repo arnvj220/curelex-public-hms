@@ -11,6 +11,7 @@ const DEPARTMENTS = [
 
 export default function Register() {
   const [form, setForm] = useState({
+    accountType:     'admin', // 'admin' or 'separate_doctor'
     clinicName:      '',
     name:            '',
     email:           '',
@@ -30,19 +31,25 @@ export default function Register() {
     setError('');
     if (form.password !== form.confirmPassword) return setError('Passwords do not match');
     if (form.password.length < 6) return setError('Password must be at least 6 characters');
-    if (!form.clinicName.trim()) return setError('Clinic / Hospital name is required');
+    if (form.accountType === 'admin' && !form.clinicName.trim()) return setError('Clinic / Hospital name is required');
 
     setLoading(true);
     try {
-      const { data } = await API.post('/auth/register', {
-        clinicName: form.clinicName,
+      const payload = {
         name:       form.name,
         email:      form.email,
         password:   form.password,
-        role:       'admin',
+        role:       form.accountType,
         department: form.department,
         phone:      form.phone,
-      });
+        type: 'hospital'
+      };
+
+      if (form.accountType === 'admin') {
+        payload.clinicName = form.clinicName;
+      }
+
+      const { data } = await API.post('/auth/register', payload);
 
       localStorage.setItem('hms_token', data.token);
       localStorage.setItem('hms_user', JSON.stringify(data.user));
@@ -62,28 +69,62 @@ export default function Register() {
         <div className="login-logo">
           <div style={{ fontSize: 36, marginBottom: 6 }}>🏥</div>
           <h1>MediCare HMS</h1>
-          <p>Create your admin account</p>
+          <p>Create your account</p>
         </div>
 
         {error && <div className="error-msg">{error}</div>}
 
         <form onSubmit={handleSubmit}>
 
-          <div className="form-group">
-            <label className="form-label">Clinic / Hospital Name *</label>
-            <input
-              className="form-control"
-              name="clinicName"
-              type="text"
-              placeholder="e.g. City Health Clinic"
-              value={form.clinicName}
-              onChange={handleChange}
-              required
-            />
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-              This creates a new isolated clinic workspace.
+          <div className="form-group" style={{ marginBottom: 20 }}>
+            <label className="form-label">Account Type *</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, accountType: 'admin' })}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 8,
+                  border: form.accountType === 'admin' ? '2px solid #0f4c81' : '1px solid #cbd5e1',
+                  background: form.accountType === 'admin' ? '#eff6ff' : '#fff',
+                  color: form.accountType === 'admin' ? '#0f4c81' : '#475569',
+                  fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Clinic Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, accountType: 'separate_doctor' })}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 8,
+                  border: form.accountType === 'separate_doctor' ? '2px solid #0f4c81' : '1px solid #cbd5e1',
+                  background: form.accountType === 'separate_doctor' ? '#eff6ff' : '#fff',
+                  color: form.accountType === 'separate_doctor' ? '#0f4c81' : '#475569',
+                  fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Solo Doctor
+              </button>
             </div>
           </div>
+
+          {form.accountType === 'admin' && (
+            <div className="form-group">
+              <label className="form-label">Clinic / Hospital Name *</label>
+              <input
+                className="form-control"
+                name="clinicName"
+                type="text"
+                placeholder="e.g. City Health Clinic"
+                value={form.clinicName}
+                onChange={handleChange}
+                required={form.accountType === 'admin'}
+              />
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                This creates a new isolated clinic workspace.
+              </div>
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Full Name *</label>

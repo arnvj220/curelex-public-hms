@@ -17,7 +17,6 @@ const TransactionSchema = new mongoose.Schema({
   clinicId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Clinic',
-    required: true,
   },
   telemedicineId: {
     type: mongoose.Schema.Types.ObjectId,

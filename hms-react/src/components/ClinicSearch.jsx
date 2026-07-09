@@ -221,8 +221,13 @@ export default function ClinicSearch({ patientId, patientName }) {
                   {doc.name?.charAt(0)?.toUpperCase() || 'D'}
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: '#1a2236', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#1a2236', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>
                     Dr. {doc.name}
+                    {doc.reviews > 0 && (
+                      <span style={{ marginLeft: 8, fontSize: 11, color: '#f59e0b', background: '#fef3c7', padding: '2px 6px', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700 }}>
+                        <i className="fas fa-star" style={{ fontSize: 9 }} /> {doc.rating}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {doc.department || 'General'} · In-Person: ₹{doc.consultationFee || 0} · Online: ₹{doc.telemedicineFee || 0}
@@ -272,7 +277,14 @@ export default function ClinicSearch({ patientId, patientName }) {
                 <i className="fas fa-hospital" />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#1a2236' }}>{clinic.name}</div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#1a2236', display: 'flex', alignItems: 'center' }}>
+                  {clinic.name}
+                  {clinic.reviews > 0 && (
+                    <span style={{ marginLeft: 8, fontSize: 11, color: '#f59e0b', background: '#fef3c7', padding: '2px 6px', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700 }}>
+                      <i className="fas fa-star" style={{ fontSize: 9 }} /> {clinic.rating}
+                    </span>
+                  )}
+                </div>
                 {clinic.address && (
                   <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {clinic.address}
@@ -344,8 +356,13 @@ export default function ClinicSearch({ patientId, patientName }) {
               {doc.name?.charAt(0)?.toUpperCase() || 'D'}
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#1a2236', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: '#1a2236', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>
                 Dr. {doc.name}
+                {doc.reviews > 0 && (
+                  <span style={{ marginLeft: 8, fontSize: 11, color: '#f59e0b', background: '#fef3c7', padding: '2px 6px', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700 }}>
+                    <i className="fas fa-star" style={{ fontSize: 9 }} /> {doc.rating}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 11, color: '#64748b' }}>
                 {doc.department || 'General'} · In-Person: ₹{doc.consultationFee || 0} · Online: ₹{doc.telemedicineFee || 0}

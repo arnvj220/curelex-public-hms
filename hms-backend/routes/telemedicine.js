@@ -19,15 +19,15 @@ router.get('/patient/:id', telemedicineController.getPatientTelemedicine);
 router.post('/:id/pay', roleCheck('patient'), telemedicineController.processPayment);
 
 // ── Doctor routes ──
-router.get('/doctor/:id', roleCheck('doctor', 'admin'), telemedicineController.getDoctorTelemedicine);
-router.patch('/:id/approve', roleCheck('doctor', 'admin'), telemedicineController.approveTelemedicine);
-router.patch('/:id/reject', roleCheck('doctor', 'admin'), telemedicineController.rejectTelemedicine);
-router.patch('/:id/start', roleCheck('doctor', 'admin'), telemedicineController.startTelemedicine);
-router.patch('/:id/end', roleCheck('doctor', 'admin'), telemedicineController.endTelemedicine);
-router.post('/:id/request-payout', roleCheck('doctor'), telemedicineController.requestPayout);
+router.get('/doctor/:id', roleCheck('doctor', 'separate_doctor', 'admin'), telemedicineController.getDoctorTelemedicine);
+router.patch('/:id/approve', roleCheck('doctor', 'separate_doctor', 'admin'), telemedicineController.approveTelemedicine);
+router.patch('/:id/reject', roleCheck('doctor', 'separate_doctor', 'admin'), telemedicineController.rejectTelemedicine);
+router.patch('/:id/start', roleCheck('doctor', 'separate_doctor', 'admin'), telemedicineController.startTelemedicine);
+router.patch('/:id/end', roleCheck('doctor', 'separate_doctor', 'admin'), telemedicineController.endTelemedicine);
+router.post('/:id/request-payout', roleCheck('doctor', 'separate_doctor'), telemedicineController.requestPayout);
 router.get('/earnings/:doctorId', telemedicineController.getDoctorEarnings);
-router.put('/bank-details', roleCheck('doctor'), telemedicineController.updateBankDetails);
-router.put('/consultation-fee', roleCheck('doctor'), telemedicineController.updateTelemedicineFee);
+router.put('/bank-details', roleCheck('doctor', 'separate_doctor'), telemedicineController.updateBankDetails);
+router.put('/consultation-fee', roleCheck('doctor', 'separate_doctor'), telemedicineController.updateTelemedicineFee);
 
 // ── Super Admin routes (payout management) ──
 router.get('/pending-payouts', roleCheck('super_admin'), telemedicineController.getPendingPayouts);

@@ -14,6 +14,7 @@
     "test:watch": "mocha tests/task-model.test.js --watch --exit"
   },
   "dependencies": {
+    "axios": "^1.16.1",
     "bcryptjs": "^2.4.3",
     "bwip-js": "^4.11.1",
     "cookie-parser": "^1.4.7",
@@ -29,9 +30,11 @@
     "morgan": "^1.11.0",
     "multer": "^2.1.1",
     "node-cron": "^4.5.0",
+    "nodemailer": "^9.0.3",
     "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "stripe": "^22.3.0"
   },
   "devDependencies": {
     "chai": "^6.2.2",

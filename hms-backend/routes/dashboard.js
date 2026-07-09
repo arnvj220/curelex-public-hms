@@ -182,7 +182,7 @@ router.get('/stats', auth, async (req, res) => {
     /* ──────────────────────────────────────────────────────
        DOCTOR — my patients + my appointments + labs + IPD
     ────────────────────────────────────────────────────── */
-    if (role === 'doctor') {
+    if (role === 'doctor' || role === 'separate_doctor') {
       const myPatients = await Appointment.distinct('patient', { clinicId, doctor: userId });
       // ✅ FIX: same Lab.status enum issue as above, plus Lab has no
       // `doctor` field on the schema (it references patient/orderedBy) —

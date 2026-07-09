@@ -7,6 +7,8 @@ import ClinicSearch from '../components/ClinicSearch';
 import '../css/PatientDashboard.css';
 import PatientSidebar from '../components/PatientSidebar';
 import BottomNav from '../components/BottomNav';
+import heroImage from "../../assets/front.jpeg";
+import curelexLogo from "../../assets/logo.png";
 
 // ── Responsive hook — updates on resize ──────────────────────────────────────
 function useIsMobile(breakpoint = 768) {
@@ -130,7 +132,7 @@ export default function PatientDashboard() {
 
   // ── Shared scroll-row style (used for both card rows) ────────────────────
   const scrollRowStyle = isMobile
-  ? {
+    ? {
       display: 'flex',
       gap: '12px',
       overflowX: 'auto',
@@ -143,7 +145,7 @@ export default function PatientDashboard() {
       msOverflowStyle: 'none',
       scrollbarWidth: 'none',
     }
-  : {
+    : {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
       gap: '14px',
@@ -171,7 +173,7 @@ export default function PatientDashboard() {
             </button>
           )}
           <Link to="/patient-dashboard" className="pd-topbar__title">
-            {isMobile ? `Hi, ${patientName.split(' ')[0]}` : 'My Health'}
+            Patient Portal
           </Link>
         </div>
         <div className="pd-topbar__right">
@@ -241,21 +243,165 @@ export default function PatientDashboard() {
         <div className="pd-main">
           <main className="pd-body">
 
-            {/* Welcome Banner */}
+            {/* Hero Banner */}
             <div
-              className="pd-welcome-banner"
               style={{
-                background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                borderRadius: 16, padding: '24px 28px', marginBottom: 24,
-                border: '1px solid #bfdbfe',
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "linear-gradient(135deg,#eef5ff,#dbeafe)",
+                border: "1px solid #bfdbfe",
+                borderRadius: "22px",
+                padding: isMobile ? "24px 20px" : "40px",
+                marginBottom: "28px",
+                overflow: "hidden",
+                flexWrap: isMobile ? "wrap" : "nowrap",
+                gap: "20px",
+                position: "relative",
               }}
             >
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1e3a8a' }}>
-                Welcome back, {patientName}! 👋
-              </h2>
-              <p style={{ margin: '4px 0 0', color: '#3b82f6', fontSize: 14 }}>
-                Here's a summary of your health journey
-              </p>
+              {/* Left Side */}
+              {/* Left Side */}
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: "260px",
+                  paddingTop: isMobile ? "35px" : "0px",
+                }}
+              >
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: isMobile ? "32px" : "48px",
+                    fontWeight: 800,
+                    lineHeight: 1.1,
+                    color: "#111827",
+                  }}
+                >
+                  Your Health,
+                  <br />
+                  <span style={{ color: "#2563eb" }}>Our Priority</span>
+                </h1>
+
+                <p
+                  style={{
+                    marginTop: "18px",
+                    color: "#4b5563",
+                    fontSize: "17px",
+                    maxWidth: "450px",
+                  }}
+                >
+                  Curelex is here to care for you and your family with
+                  seamless appointments, prescriptions and healthcare.
+                </p>
+
+                <button
+                  onClick={() => navigate("/patient-appointments")}
+                  style={{
+                    marginTop: "24px",
+                    background: "#2563eb",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: "14px 24px",
+                    fontWeight: 600,
+                    fontSize: "15px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <i
+                    className="fas fa-calendar-plus"
+                    style={{ marginRight: "8px" }}
+                  />
+                  Book Appointment
+                </button>
+                {isMobile && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "10px",
+                      right: "10px",
+                      background: "rgba(255,255,255,0.95)",
+                      borderRadius: "16px",
+                      padding: "8px 12px",
+                      boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    <img
+                      src={curelexLogo}
+                      alt="Curelex"
+                      style={{
+                        width: "110px",
+                        display: "block",
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Right Side */}
+              <div
+                style={{
+                  flex: 1,
+                  position: "relative",
+                  display: isMobile ? "none" : "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  minHeight: "320px",
+                }}
+              >
+                {/* Background Blue Circle */}
+                <div
+                  style={{
+                    position: "absolute",
+                    width: "320px",
+                    height: "320px",
+                    borderRadius: "50%",
+                    background:
+                      "radial-gradient(circle, rgba(59,130,246,0.18) 0%, rgba(59,130,246,0.08) 60%, transparent 100%)",
+                    zIndex: 0,
+                  }}
+                />
+
+                {/* Logo */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "25px",
+                    left: "35px",
+                    background: "rgba(255,255,255,0.92)",
+                    backdropFilter: "blur(12px)",
+                    borderRadius: "18px",
+                    padding: "10px 16px",
+                    boxShadow: "0 12px 30px rgba(0,0,0,0.08)",
+                    zIndex: 3,
+                  }}
+                >
+                  <img
+                    src={curelexLogo}
+                    alt="Curelex"
+                    style={{
+                      width: "165px",
+                      display: "block",
+                    }}
+                  />
+                </div>
+
+                {/* Doctor Image */}
+                <img
+                  src={heroImage}
+                  alt="Healthcare"
+                  style={{
+                    width: "72%",
+                    maxWidth: "330px",
+                    borderRadius: "22px",
+                    objectFit: "cover",
+                    boxShadow: "0 20px 45px rgba(37,99,235,0.18)",
+                    position: "relative",
+                    zIndex: 2,
+                  }}
+                />
+              </div>
             </div>
 
             {/* Admission banner */}
@@ -460,48 +606,48 @@ export default function PatientDashboard() {
               {doctors.length === 0 ? (
                 <div className="pd-card"><div className="pd-card__body"><div className="pd-empty"><i className="fas fa-user-md" /> No doctors available right now</div></div></div>
               ) : (
-               <div
-  style={
-    isMobile
-      ? {
-          display: 'flex',
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          gap: 16,
-          paddingBottom: 10,
-          WebkitOverflowScrolling: 'touch',
-          scrollSnapType: 'x mandatory',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        }
-      : {
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: 16,
-        }
-  }
->
+                <div
+                  style={
+                    isMobile
+                      ? {
+                        display: 'flex',
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        gap: 16,
+                        paddingBottom: 10,
+                        WebkitOverflowScrolling: 'touch',
+                        scrollSnapType: 'x mandatory',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                      }
+                      : {
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                        gap: 16,
+                      }
+                  }
+                >
                   {doctors.map((doc) => {
                     const online = isDoctorOnline?.(doc._id) ?? false;
                     return (
                       <div
-  key={doc._id}
-  style={{
-    flex: isMobile ? '0 0 280px' : undefined,
-    minWidth: isMobile ? 280 : undefined,
-    scrollSnapAlign: isMobile ? 'start' : undefined,
+                        key={doc._id}
+                        style={{
+                          flex: isMobile ? '0 0 280px' : undefined,
+                          minWidth: isMobile ? 280 : undefined,
+                          scrollSnapAlign: isMobile ? 'start' : undefined,
 
-    background: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    border: online ? '2px solid #2d6be4' : '1.5px solid #e5e7eb',
-    boxShadow: online
-      ? '0 4px 20px rgba(45,107,228,0.10)'
-      : '0 2px 8px rgba(0,0,0,0.04)',
-    position: 'relative',
-    opacity: online ? 1 : 0.65,
-  }}
->
+                          background: '#fff',
+                          borderRadius: 16,
+                          padding: 20,
+                          border: online ? '2px solid #2d6be4' : '1.5px solid #e5e7eb',
+                          boxShadow: online
+                            ? '0 4px 20px rgba(45,107,228,0.10)'
+                            : '0 2px 8px rgba(0,0,0,0.04)',
+                          position: 'relative',
+                          opacity: online ? 1 : 0.65,
+                        }}
+                      >
                         <span style={{ position: 'absolute', top: 16, right: 16, width: 12, height: 12, borderRadius: '50%', background: online ? '#22c55e' : '#cbd5e1', border: '2px solid #fff', boxShadow: online ? '0 0 0 2px #bbf7d0' : 'none', display: 'inline-block' }} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
                           <div style={{ width: 56, height: 56, borderRadius: '50%', background: online ? '#dbeafe' : '#f1f5f9', color: online ? '#2d6be4' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, flexShrink: 0 }}>

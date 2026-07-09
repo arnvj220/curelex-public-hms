@@ -129,6 +129,52 @@ ul { list-style: none; }
 img { max-width: 100%; height: auto; }
 
 /* ============================================
+   TOAST / NOTIFICATION
+   ============================================ */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 99999;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  color: var(--text-inverse);
+  background: rgba(15, 23, 42, 0.95);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+
+.toast.success .toast-content {
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+
+.toast.error .toast-content {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+}
+
+.toast.info .toast-content {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+
+/* ============================================
    LAYOUT (HMS)
    ============================================ */
 .layout { display: flex; min-height: 100vh; }
@@ -1658,7 +1704,11 @@ tr:hover td { background: var(--surface2); }
     /* ── Site Modal ── */
     .site-modal-container { width: 92vw; padding: 16px; border-radius: 16px; max-height: 90vh; }
     .site-modal-close { width: 40px; height: 40px; font-size: 1.5rem; top: 0.5rem; right: 0.5rem; }
-    .role-selection { grid-template-columns: 1fr; gap: 12px; }
+    .role-selection {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    }
 
     /* ── Auth Pages ── */
     .auth-page-container { grid-template-columns: 1fr; }

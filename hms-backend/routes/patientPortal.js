@@ -135,8 +135,15 @@ router.get('/doctors/:clinicId', patientAuth, async (req, res) => {
   try {
     const { clinicId } = req.params;
 
+    let query;
+    if (clinicId === 'independent') {
+      query = { role: 'separate_doctor', isActive: true };
+    } else {
+      query = { clinicId, role: 'doctor', isActive: true };
+    }
+
     const doctors = await User.find(
-      { clinicId, role: 'doctor', isActive: true },
+      query,
       'name department consultationFee telemedicineFee'
     ).sort({ name: 1 });
 

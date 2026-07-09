@@ -49,7 +49,18 @@ export default function DoctorTelemedicine() {
     }
   };
 
-  const doctorId = user?._id || user?.id;
+const doctorId = user?._id || user?.id;
+
+// ── Setup completeness check ──
+const hasFeeSet = Number(user?.telemedicineFee) > 0;
+const hasBankDetails = Boolean(
+  user?.bankDetails?.accountHolderName &&
+  user?.bankDetails?.accountNumber &&
+  user?.bankDetails?.bankName &&
+  user?.bankDetails?.ifscCode
+);
+const setupComplete = hasFeeSet && hasBankDetails;
+
 
   // ── Socket: Listen for events ──
   useEffect(() => {
@@ -160,9 +171,17 @@ export default function DoctorTelemedicine() {
 
   // ── Toggle online/offline status ──
   const toggleOnlineStatus = () => {
-    const newStatus = doctorStatus === 'online' ? 'offline' : 'online';
-    setDoctorOnline(newStatus);
-  };
+  if (!setupComplete && doctorStatus !== 'online') {
+    alert(
+      '⚠️ Please complete your setup before going online:\n' +
+      (!hasFeeSet ? '• Set your consultation fee\n' : '') +
+      (!hasBankDetails ? '• Add your bank details' : '')
+    );
+    return;
+  }
+  const newStatus = doctorStatus === 'online' ? 'offline' : 'online';
+  setDoctorOnline(newStatus);
+};
 
   // ── Cancel Handler ──
   const handleCancel = async (id) => {
@@ -335,34 +354,56 @@ export default function DoctorTelemedicine() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 12px',
-            borderRadius: 20,
-            background: doctorStatus === 'online' ? '#dcfce7' : '#fee2e2',
-            border: `1px solid ${doctorStatus === 'online' ? '#86efac' : '#fca5a5'}`
-          }}>
-            <span style={{
-              display: 'inline-block',
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: doctorStatus === 'online' ? '#22c55e' : '#ef4444',
-              animation: doctorStatus === 'online' ? 'pulse 2s infinite' : 'none'
-            }}></span>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>
-              {doctorStatus === 'online' ? '🟢 Online' : '🔴 Offline'}
-            </span>
-            <button
-              onClick={toggleOnlineStatus}
-              className={`btn btn-sm ${doctorStatus === 'online' ? 'btn-danger' : 'btn-success'}`}
-              style={{ fontSize: 11, padding: '2px 10px' }}
-            >
-              {doctorStatus === 'online' ? 'Go Offline' : 'Go Online'}
-            </button>
-          </div>
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '6px 12px',
+  borderRadius: 20,
+  background: doctorStatus === 'online' ? '#dcfce7' : '#fee2e2',
+  border: `1px solid ${doctorStatus === 'online' ? '#86efac' : '#fca5a5'}`
+}}>
+  <span style={{
+    display: 'inline-block',
+    width: 10,
+    height: 10,
+    borderRadius: '50%',
+    background: doctorStatus === 'online' ? '#22c55e' : '#ef4444',
+    animation: doctorStatus === 'online' ? 'pulse 2s infinite' : 'none'
+  }}></span>
+  <span style={{ fontSize: 13, fontWeight: 600 }}>
+    {doctorStatus === 'online' ? '🟢 Online' : '🔴 Offline'}
+  </span>
+  <button
+    onClick={toggleOnlineStatus}
+    disabled={!setupComplete && doctorStatus !== 'online'}
+    title={!setupComplete ? 'Set consultation fee and bank details first' : ''}
+    className={`btn btn-sm ${doctorStatus === 'online' ? 'btn-danger' : 'btn-success'}`}
+    style={{
+      fontSize: 11,
+      padding: '2px 10px',
+      opacity: (!setupComplete && doctorStatus !== 'online') ? 0.5 : 1,
+      cursor: (!setupComplete && doctorStatus !== 'online') ? 'not-allowed' : 'pointer',
+    }}
+  >
+    {doctorStatus === 'online' ? 'Go Offline' : 'Go Online'}
+  </button>
+</div>
 
+{!setupComplete && (
+  <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>
+    ⚠️ {!hasFeeSet && !hasBankDetails ? 'Set fee & bank details to go online' :
+        !hasFeeSet ? 'Set consultation fee to go online' :
+        'Add bank details to go online'}
+  </span>
+)}
+
+{!setupComplete && (
+  <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>
+    ⚠️ {!hasFeeSet && !hasBankDetails ? 'Set fee & bank details to go online' :
+        !hasFeeSet ? 'Set consultation fee to go online' :
+        'Add bank details to go online'}
+  </span>
+)}
           {/* Consultation Fee Input */}
           <div style={{
             display: 'flex',

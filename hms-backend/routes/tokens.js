@@ -7,6 +7,7 @@ import { getClinicFilter } from '../middleware/clinicFilter.js';
 import Token from '../models/Token.js';
 import User from '../models/User.js';
 import Patient from '../models/Patient.js';
+import FollowUp from '../models/FollowUp.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -710,6 +711,76 @@ router.get('/stats', auth, async (req, res) => {
   } catch (err) {
     console.error('Error fetching token stats:', err);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/tokens ──────────────────────────────────────────────────────
+// Purely additive — lists all tokens for the clinic (not just today's).
+// Does not modify any existing route or query shape.
+router.get('/', auth, async (req, res) => {
+  try {
+    const clinicId = resolveClinicId(req);
+    let effectiveClinicId = clinicId;
+    if (req.user.role !== 'super_admin') {
+      effectiveClinicId = req.user.clinicId;
+    }
+    if (!effectiveClinicId) return res.json({ tokens: [] });
+
+    const tokens = await Token.find({ clinicId: effectiveClinicId })
+      .populate('doctor', 'name department')
+      .populate('generatedBy', 'name role')
+      .sort({ createdAt: -1 })
+      .limit(2000)
+      .lean();
+
+    // Attach follow-up data from the separate collection, without touching Token
+    const followUps = await FollowUp.find({ clinicId: effectiveClinicId }).lean();
+    const followUpMap = new Map(followUps.map(f => [String(f.tokenId), f]));
+
+    const merged = tokens.map(t => ({
+      ...t,
+      followUpDate: followUpMap.get(String(t._id))?.followUpDate || null,
+      followUpNote: followUpMap.get(String(t._id))?.followUpNote || '',
+    }));
+
+    res.json({ tokens: merged });
+  } catch (err) {
+    console.error('Error fetching all tokens:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── PATCH /api/tokens/:id/follow-up ─────────────────────────────────────
+// Writes to the separate FollowUp collection only — Token document is
+// never modified by this route.
+router.patch('/:id/follow-up', auth, async (req, res) => {
+  try {
+    const clinicId = resolveClinicId(req);
+    let effectiveClinicId = clinicId;
+    if (req.user.role !== 'super_admin') {
+      effectiveClinicId = req.user.clinicId;
+    }
+    if (!effectiveClinicId) return res.status(400).json({ message: 'No clinic selected' });
+
+    const token = await Token.findOne({ _id: req.params.id, clinicId: effectiveClinicId })
+      .populate('doctor', 'name department')
+      .populate('generatedBy', 'name role');
+    if (!token) return res.status(404).json({ message: 'Token not found in this clinic' });
+
+    const { followUpDate, followUpNote } = req.body;
+    const followUp = await FollowUp.findOneAndUpdate(
+      { tokenId: token._id },
+      { clinicId: effectiveClinicId, followUpDate: followUpDate || null, followUpNote: followUpNote || '' },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      ...token.toObject(),
+      followUpDate: followUp.followUpDate,
+      followUpNote: followUp.followUpNote,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

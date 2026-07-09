@@ -5,7 +5,7 @@ const notificationSchema = new mongoose.Schema({
   message: { type: String, required: true },
   taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
   read: { type: Boolean, default: false },
-  clinicId: { type: String, required: true },
+  clinicId: { type: String },
 }, { timestamps: true });
 
 export default mongoose.model('Notification', notificationSchema);

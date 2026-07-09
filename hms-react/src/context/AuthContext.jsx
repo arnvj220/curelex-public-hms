@@ -52,6 +52,8 @@ export const AuthProvider = ({ children }) => {
   const { socket, isConnected, emit, on, off } = useSocket();
   const [doctorStatus,   setDoctorStatus]   = useState('offline');
   const [onlineDoctors,  setOnlineDoctors]  = useState([]);
+  const [clinicType, setClinicType] = useState(null);
+  const [activePlan, setActivePlan] = useState('lite');
 
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
@@ -68,6 +70,7 @@ export const AuthProvider = ({ children }) => {
         console.log('📋 Profile loaded:', data);
         setUser(data.user || data);
         if (data.patient) setPatient(data.patient);
+        if (data.clinicType) setClinicType(data.clinicType);
       })
       .catch((err) => {
         console.error('Failed to load profile:', err);
@@ -91,7 +94,7 @@ export const AuthProvider = ({ children }) => {
     console.log('🔌 Socket setup for user:', { userId, role: user.role, clinicId });
 
     const registerWithServer = () => {
-      if (user.role === 'doctor') {
+      if (user.role === 'doctor' || user.role === 'separate_doctor') {
         console.log('🩺 Registering doctor with socket:', userId);
         // Join the socket room and register, but do NOT set status to online.
         // The doctor must manually click "Go Online" — status stays 'offline' on login.
@@ -152,7 +155,7 @@ export const AuthProvider = ({ children }) => {
 
   // ── Doctor status management ─────────────────────────────────────────────
   const setDoctorOnline = useCallback((status) => {
-    if (!user || user.role !== 'doctor') return;
+    if (!user || (user.role !== 'doctor' && user.role !== 'separate_doctor')) return;
     const doctorId = user._id || user.id;
     console.log(`🔄 Setting doctor ${doctorId} to ${status}`);
     setDoctorStatus(status);
@@ -185,52 +188,84 @@ export const AuthProvider = ({ children }) => {
   };
 
   // ── Login ────────────────────────────────────────────────────────────────
-  const login = async (email, password) => {
-    setLoading(true);
-    try {
-      const { data } = await API.post('/auth/login', { email, password });
-      console.log('✅ LOGIN SUCCESS:', data.user);
+const login = async (email, password) => {
+  setLoading(true);
+  try {
+    const { data } = await API.post('/auth/login', { email, password });
+    console.log('✅ LOGIN SUCCESS:', data.user);
 
-      localStorage.setItem('hms_token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem('hms_token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
 
-      resetSocket();
+    resetSocket();
 
-      setUser(data.user);
-      if (data.patient) {
-        setPatient(data.patient);
-        localStorage.setItem('patient', JSON.stringify(data.patient));
+    setUser(data.user);
+    if (data.patient) {
+      setPatient(data.patient);
+      localStorage.setItem('patient', JSON.stringify(data.patient));
+    }
+    if (data.user?.activePlan) {
+  setActivePlan(data.user.activePlan);
+} else if (data.clinic?.plan) {
+  setActivePlan(data.clinic.plan);
+}
+    
+    // Set clinic type from response
+    if (data.clinicType) {
+      setClinicType(data.clinicType);
+    } else if (data.user?.clinicId) {
+      // If clinic type not in response, fetch it
+      try {
+        // const clinicRes = await API.get(`/clinics/${data.user.clinicId}`);
+        const clinicRes = await API.get('/clinics/me');
+        if (clinicRes.data?.type) {
+          setClinicType(clinicRes.data.type);
+        }
+      } catch (err) {
+        console.error('Failed to fetch clinic type:', err);
       }
-
-      return { success: true, user: data.user, patient: data.patient };
-    } catch (err) {
-      console.error('❌ Login error:', err);
-      return {
-        success: false,
-        message: err.response?.data?.message || 'Login failed',
-      };
-    } finally {
-      setLoading(false);
     }
-  };
 
-  // ── Register (Staff) ─────────────────────────────────────────────────────
+    return { success: true, user: data.user, patient: data.patient };
+  } catch (err) {
+    console.error('❌ Login error:', err);
+    return {
+      success: false,
+      message: err.response?.data?.message || 'Login failed',
+    };
+  } finally {
+    setLoading(false);
+  }
+};
+
   const register = async (formData) => {
-    setLoading(true);
-    try {
-      const { data } = await API.post('/auth/register', formData);
-      localStorage.setItem('hms_token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      resetSocket();
-      setUser(data.user);
-      return { success: true };
-    } catch (err) {
-      console.error('❌ Register error:', err);
-      return { success: false, message: err.response?.data?.message || 'Registration failed' };
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const { data } = await API.post('/auth/register', formData);
+    localStorage.setItem('hms_token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    resetSocket();
+    setUser(data.user);
+
+    if (data.clinicType) {
+      setClinicType(data.clinicType);
+    } else {
+      try {
+        const clinicRes = await API.get('/clinics/me');
+        if (clinicRes.data?.type) setClinicType(clinicRes.data.type);
+      } catch (err) {
+        console.error('Failed to fetch clinic type after register:', err);
+      }
     }
-  };
+
+    return { success: true, user: data.user, clinicType: data.clinicType };
+  } catch (err) {
+    console.error('❌ Register error:', err);
+    return { success: false, message: err.response?.data?.message || 'Registration failed' };
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Patient Registration ─────────────────────────────────────────────────
   const registerPatient = async (formData) => {
@@ -273,9 +308,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ── Google Login ──────────────────────────────────────────────────────────
+  const loginWithGoogle = async ({ token, email, name, isPatient = false }) => {
+    setLoading(true);
+    try {
+      const { data } = await API.post('/auth/google-login', { token, email, name, isPatient });
+      localStorage.setItem('hms_token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      resetSocket();
+      setUser(data.user);
+      if (data.patient) {
+        setPatient(data.patient);
+        localStorage.setItem('patient', JSON.stringify(data.patient));
+      }
+      if (data.user?.activePlan) setActivePlan(data.user.activePlan);
+      return { success: true, user: data.user, patient: data.patient };
+    } catch (err) {
+      console.error('❌ Google login error:', err);
+      return { success: false, message: err.response?.data?.message || 'Google login failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Forgot Password ──────────────────────────────────────────────────────
+  const forgotPassword = async (email) => {
+    setLoading(true);
+    try {
+      const { data } = await API.post('/auth/forgot-password', { email });
+      return { success: true, message: data.message, resetLink: data.resetLink };
+    } catch (err) {
+      console.error('❌ Forgot password error:', err);
+      return { success: false, message: err.response?.data?.message || 'Failed to send reset email' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Reset Password ───────────────────────────────────────────────────────
+  const resetPassword = async (email, token, newPassword) => {
+    setLoading(true);
+    try {
+      const { data } = await API.post('/auth/reset-password', { email, token, newPassword });
+      return { success: true, message: data.message };
+    } catch (err) {
+      console.error('❌ Reset password error:', err);
+      return { success: false, message: err.response?.data?.message || 'Password reset failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Logout ───────────────────────────────────────────────────────────────
   const logout = () => {
-    if (user?.role === 'doctor') {
+    if (user?.role === 'doctor' || user?.role === 'separate_doctor') {
       const doctorId = user._id || user.id;
       console.log(`🔄 Logging out doctor ${doctorId}`);
       emit('doctor:status', { doctorId, status: 'offline', clinicId: user.clinicId || null });
@@ -300,7 +386,7 @@ export const AuthProvider = ({ children }) => {
     if (!user) return false;
     const role = user.role?.toLowerCase();
     if (role === 'super_admin') return true;
-    if (key === 'telemedicine') return role === 'doctor';
+    if (key === 'telemedicine') return role === 'doctor' || role === 'separate_doctor';
     if (role === 'admin') return true;
     const roleNavPerms = ROLE_PERMISSIONS[role];
     if (roleNavPerms) return roleNavPerms.includes(key);
@@ -331,7 +417,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     authReady,
     hasPerm,
-
+    clinicType,
+    activePlan,
     isPatient,
     isDoctor,
     isAdmin,
@@ -345,6 +432,9 @@ export const AuthProvider = ({ children }) => {
     getPatientData,
 
     registerPatient,
+    loginWithGoogle,
+    forgotPassword,
+    resetPassword,
 
     superAdminClinicId,
     superAdminClinicName,

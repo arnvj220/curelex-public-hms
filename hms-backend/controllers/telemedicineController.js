@@ -55,7 +55,7 @@ export const requestTelemedicine = async (req, res) => {
     }
 
     // FIX: Find doctor by _id + role only — no clinicId filter
-    const doctor = await User.findOne({ _id: doctorId, role: 'doctor' });
+    const doctor = await User.findOne({ _id: doctorId, role: { $in: ['doctor', 'separate_doctor'] } });
     if (!doctor) {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
@@ -827,10 +827,26 @@ export const getDoctorEarnings = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10);
 
+    // Fetch pending payout requests for the doctor
+    const pendingPayoutRequests = await Telemedicine.find({
+      doctorId: new mongoose.Types.ObjectId(doctorId),
+      doctorPayoutStatus: 'pending',
+      status: 'completed'
+    }).populate('patientId', 'name');
+
+    const formattedPendingPayouts = pendingPayoutRequests.map(t => ({
+      _id: t._id,
+      patientName: t.patientName || t.patientId?.name,
+      doctorPayoutAmount: t.doctorPayoutAmount,
+      doctorPayoutStatus: t.doctorPayoutStatus,
+      createdAt: t.createdAt
+    }));
+
     res.json({
       success: true,
       earnings: { total: totalEarnings, pending: pendingPayouts, processing: processingPayouts, completed: completedPayouts, breakdown: transactions },
-      recentTransactions
+      recentTransactions,
+      pendingPayouts: formattedPendingPayouts
     });
   } catch (error) {
     console.error('Get doctor earnings error:', error);
@@ -891,7 +907,7 @@ export const updateBankDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (user.role !== 'doctor') {
+    if (user.role !== 'doctor' && user.role !== 'separate_doctor') {
       return res.status(403).json({ success: false, message: 'Only doctors can update bank details' });
     }
 
@@ -923,7 +939,7 @@ export const updateTelemedicineFee = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (user.role !== 'doctor') {
+    if (user.role !== 'doctor' && user.role !== 'separate_doctor') {
       return res.status(403).json({ success: false, message: 'Only doctors can update consultation fee' });
     }
 

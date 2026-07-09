@@ -9,9 +9,12 @@ import SsoToken from '../ims/src/models/SsoToken.js';
 import User from '../models/User.js';
 import Clinic from '../models/Clinic.js';
 import Patient from '../models/Patient.js';
+import DoctorProfile from '../models/DoctorProfile.js';
 import { auth } from '../middleware/auth.js';
 import roleCheck from '../middleware/roleCheck.js';
 import { getClinicFilter } from '../middleware/clinicFilter.js';
+import Feedback from '../models/Feedback.js';
+import Subscription from '../models/Subscription.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,7 +88,7 @@ router.post('/register-super-admin', async (req, res) => {
 // ── Register (Staff/Clinic Admin) ──────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, clinicName, clinicId, department, phone } = req.body;
+    const { name, email, password, role, clinicName, clinicId, department, phone, type } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password are required' });
@@ -107,7 +110,12 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ message: 'An account with this email already exists' });
       }
 
-      const clinic = await Clinic.create({ name: clinicName, email, phone });
+      const clinic = await Clinic.create({ 
+        name: clinicName, 
+        email, 
+        phone, 
+        type: type || 'hospital' 
+      });
 
       const user = await User.create({
         name, email, password,
@@ -131,27 +139,37 @@ router.post('/register', async (req, res) => {
       return res.status(201).json({ token, user: userOut });
     }
 
-    // Non-admin staff registration: must provide clinicId to join an existing clinic
-    if (!clinicId) {
+    // Non-admin staff registration: must provide clinicId to join an existing clinic (except separate_doctor)
+    if (!clinicId && role !== 'separate_doctor') {
       return res.status(400).json({ message: 'clinicId is required to join an existing clinic' });
     }
 
-    const targetClinic = await Clinic.findById(clinicId);
-    if (!targetClinic) {
-      return res.status(404).json({ message: 'Clinic not found' });
-    }
+    let targetClinic = null;
+    if (clinicId) {
+      targetClinic = await Clinic.findById(clinicId);
+      if (!targetClinic) {
+        return res.status(404).json({ message: 'Clinic not found' });
+      }
 
-    const existingUser = await User.findOne({ email, clinicId });
-    if (existingUser) {
-      return res.status(400).json({ message: 'An account with this email already exists in this clinic' });
+      const existingUser = await User.findOne({ email, clinicId });
+      if (existingUser) {
+        return res.status(400).json({ message: 'An account with this email already exists in this clinic' });
+      }
+    } else {
+      // For separate_doctor with no clinicId, check global email uniqueness
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'An account with this email already exists' });
+      }
     }
 
     const ROLE_PERMISSIONS_MAP = {
-      doctor:         ['dashboard', 'patients', 'ipd', 'lab', 'prescriptions', 'telemedicine'],
-      nurse:          ['dashboard', 'patients', 'ipd'],
-      receptionist:   ['dashboard', 'patients', 'billing', 'tokens'],
-      pharmacist:     ['dashboard', 'pharmacy', 'inventory'],
-      lab_technician: ['dashboard', 'patients', 'lab'],
+      doctor:          ['dashboard', 'patients', 'ipd', 'lab', 'prescriptions', 'telemedicine'],
+      separate_doctor: ['dashboard', 'patients', 'telemedicine'],
+      nurse:           ['dashboard', 'patients', 'ipd'],
+      receptionist:    ['dashboard', 'patients', 'billing', 'tokens'],
+      pharmacist:      ['dashboard', 'pharmacy', 'inventory'],
+      lab_technician:  ['dashboard', 'patients', 'lab'],
     };
 
     const user = await User.create({
@@ -159,6 +177,16 @@ router.post('/register', async (req, res) => {
       clinicId, department, phone,
       permissions: ROLE_PERMISSIONS_MAP[role] || ['dashboard'],
     });
+
+    if (role === 'separate_doctor') {
+      await DoctorProfile.create({
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.phone || '',
+        verificationStatus: 'pending',
+      });
+    }
 
     const token = jwt.sign(
       { id: user._id, role: user.role, clinicId },
@@ -410,6 +438,7 @@ router.post('/login', async (req, res) => {
       token, 
       user: userOut,
       patient: patient || undefined,
+
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -422,6 +451,19 @@ router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    let clinicType = null;
+    let activePlan = null;
+
+    if (user.clinicId) {
+      const clinic = await Clinic.findById(user.clinicId).select('type');
+      clinicType = clinic?.type || null;
+
+      const subscription = await Subscription.findOne({ clinicId: user.clinicId }).select('plan status');
+      activePlan = subscription?.status === 'active' || subscription?.status === 'trialing'
+        ? subscription.plan
+        : (subscription?.plan || 'lite'); // adjust to your actual "no active plan" rule
+    }
     
     let patientData = null;
     if (user.role === 'patient') {
@@ -440,7 +482,7 @@ router.get('/profile', auth, async (req, res) => {
       }
     }
     
-    res.json({ user, patient: patientData });
+    res.json({ user, patient: patientData, clinicType, activePlan });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -724,13 +766,248 @@ router.put('/change-password', auth, async (req, res) => {
 router.get('/available-doctors', auth, async (req, res) => {
   try {
     const doctors = await User.find(
-      { role: 'doctor', isActive: true },
-      'name department consultationFee telemedicineFee phone email avatar'
-    ).sort({ name: 1 });
-    res.json({ success: true, doctors });
+      { role: { $in: ['doctor', 'separate_doctor'] }, isActive: true },
+      'name department consultationFee telemedicineFee phone email avatar bankDetails'
+    ).sort({ name: 1 }).lean();
+
+    // ── Only show doctors who have completed telemedicine setup ──
+    const setupCompleteDoctors = doctors.filter(doc => {
+      const hasFee = Number(doc.telemedicineFee) > 0;
+      const hasBankDetails = Boolean(
+        doc.bankDetails?.accountHolderName &&
+        doc.bankDetails?.accountNumber &&
+        doc.bankDetails?.bankName &&
+        doc.bankDetails?.ifscCode
+      );
+      return hasFee && hasBankDetails;
+    });
+
+    // ── Merge in DoctorProfile.photoUrl and Feedback ratings ──
+    const doctorIds = setupCompleteDoctors.map(d => d._id);
+    const profiles = await DoctorProfile.find(
+      { userId: { $in: doctorIds } },
+      'userId photoUrl specialization'
+    ).lean();
+
+    const profileMap = new Map(profiles.map(p => [String(p.userId), p]));
+    const Feedback = mongoose.model('Feedback');
+
+    const enrichedDoctors = [];
+    for (let doc of setupCompleteDoctors) {
+      const profile = profileMap.get(String(doc._id));
+      
+      const stats = await Feedback.aggregate([
+        { $match: { doctorId: doc._id } },
+        { $group: { _id: "$doctorId", averageRating: { $avg: "$doctorRating" }, totalRatings: { $sum: 1 } } }
+      ]);
+      
+      let averageRating = 0;
+      let totalRatings = 0;
+      if (stats.length > 0) {
+        averageRating = Number(stats[0].averageRating.toFixed(1));
+        totalRatings = stats[0].totalRatings;
+      }
+      
+      enrichedDoctors.push({
+        ...doc,
+        photoUrl: profile?.photoUrl || doc.avatar || '',
+        specialization: profile?.specialization || '',
+        averageRating,
+        totalRatings
+      });
+    }
+
+    res.json({ success: true, doctors: enrichedDoctors });
   } catch (err) {
     console.error('Error fetching available doctors:', err);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── Doctor profile routes ────────────────────────────────────────────────
+router.get('/doctors/:id', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user || user.role !== 'separate_doctor') {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    const profile = await DoctorProfile.findOne({ userId: user._id }) || await DoctorProfile.create({
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      mobile: user.phone || '',
+      verificationStatus: 'pending',
+      isActive: false,
+    });
+
+    res.json({ success: true, doctor: { ...user.toObject(), ...profile.toObject() } });
+  } catch (err) {
+    console.error('Get doctor profile error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.get('/doctors/:id/status', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user || user.role !== 'separate_doctor') {
+      return res.status(404).json({ success: false, message: 'Doctor status not found' });
+    }
+
+    const profile = await DoctorProfile.findOne({ userId: user._id });
+    res.json({
+      success: true,
+      doctor: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isActive: profile?.isActive === true,
+        verificationStatus: profile?.verificationStatus || 'pending',
+      },
+    });
+  } catch (err) {
+    console.error('Get doctor status error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.patch('/doctors/:id/active', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user || user.role !== 'separate_doctor') {
+      return res.status(404).json({ success: false, message: 'Doctor status not found' });
+    }
+
+    const isActive = Boolean(req.body?.isActive);
+    const profile = await DoctorProfile.findOneAndUpdate(
+      { userId: user._id },
+      { $set: { isActive } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    user.isActive = isActive;
+    await user.save();
+
+    res.json({
+      success: true,
+      isActive,
+      doctor: {
+        id: user._id,
+        name: user.name,
+        isActive,
+        verificationStatus: profile?.verificationStatus || 'pending',
+      },
+    });
+  } catch (err) {
+    console.error('Update doctor active status error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.put('/doctors/:id', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user || user.role !== 'separate_doctor') {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    const profile = await DoctorProfile.findOneAndUpdate(
+      { userId: user._id },
+      {
+        $set: {
+          name: req.body.name || user.name,
+          email: req.body.email || user.email,
+          mobile: req.body.mobile || user.phone || '',
+          specialization: req.body.specialization || '',
+          qualification: req.body.qualification || '',
+          experience: req.body.experience ? Number(req.body.experience) : 0,
+          licenseNumber: req.body.licenseNumber || '',
+          currentInstitute: req.body.hospital || req.body.currentInstitute || '',
+          address: req.body.address || '',
+          consultationFee: req.body.consultationFee ? Number(req.body.consultationFee) : 0,
+          bio: req.body.bio || '',
+          photoUrl: req.body.photoUrl || '',
+        },
+      },
+      { new: true, upsert: true }
+    );
+
+    if (req.body.name) user.name = req.body.name;
+    if (req.body.email) user.email = req.body.email;
+    if (req.body.mobile) user.phone = req.body.mobile;
+    if (req.body.consultationFee !== undefined) user.consultationFee = Number(req.body.consultationFee);
+    await user.save();
+
+    res.json({ success: true, doctor: { ...user.toObject(), ...profile.toObject() } });
+  } catch (err) {
+    console.error('Update doctor profile error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/doctor-profiles/pending', auth, roleCheck('super_admin'), async (req, res) => {
+  try {
+    const profiles = await DoctorProfile.find({ verificationStatus: 'pending' })
+      .populate('userId', 'name email phone role isActive clinicId')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, profiles });
+  } catch (err) {
+    console.error('List pending doctor profiles error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.patch('/doctor-profiles/:id/approve', auth, roleCheck('super_admin'), async (req, res) => {
+  try {
+    const profile = await DoctorProfile.findById(req.params.id).populate('userId', 'name email');
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found' });
+
+    profile.verificationStatus = 'approved';
+    profile.reviewedBy = req.user.id;
+    profile.reviewedAt = new Date();
+    profile.rejectionReason = '';
+    profile.isActive = true;
+    await profile.save();
+
+    const user = await User.findById(profile.userId._id);
+    if (user) {
+      user.isActive = true;
+      user.verificationStatus = 'approved';
+      await user.save();
+    }
+
+    res.json({ success: true, profile });
+  } catch (err) {
+    console.error('Approve doctor profile error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.patch('/doctor-profiles/:id/reject', auth, roleCheck('super_admin'), async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const profile = await DoctorProfile.findById(req.params.id);
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found' });
+
+    profile.verificationStatus = 'rejected';
+    profile.reviewedBy = req.user.id;
+    profile.reviewedAt = new Date();
+    profile.rejectionReason = reason || 'No reason provided';
+    profile.isActive = false;
+    await profile.save();
+
+    const user = await User.findById(profile.userId);
+    if (user) {
+      user.isActive = false;
+      user.verificationStatus = 'rejected';
+      await user.save();
+    }
+
+    res.json({ success: true, profile });
+  } catch (err) {
+    console.error('Reject doctor profile error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -747,11 +1024,11 @@ router.get('/clinics', auth, roleCheck('super_admin'), async (req, res) => {
 // ── Super Admin: Create a clinic ──────────────────────────────────────────
 router.post('/clinics', auth, roleCheck('super_admin'), async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, type } = req.body;
     if (!name || !email) return res.status(400).json({ message: 'Name and email are required' });
     const existing = await Clinic.findOne({ email });
     if (existing) return res.status(400).json({ message: 'A clinic with this email already exists' });
-    const clinic = await Clinic.create({ name, email, phone });
+    const clinic = await Clinic.create({ name, email, phone, type: type || 'hospital' });
     res.status(201).json({ success: true, clinic });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -846,6 +1123,167 @@ router.post('/sso-exchange', async (req, res) => {
   } catch (err) {
     console.error('SSO exchange error:', err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ── GOOGLE LOGIN ──────────────────────────────────────────────────────────
+router.post('/google-login', async (req, res) => {
+  try {
+    const { token, email: bodyEmail, name: bodyName, isPatient } = req.body;
+    let email = bodyEmail;
+    let name = bodyName;
+
+    // Verify Google token if provided
+    if (token) {
+      try {
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+        if (response.ok) {
+          const payload = await response.json();
+          email = payload.email;
+          name = payload.name || payload.given_name;
+        }
+      } catch (err) {
+        console.error('Google API fetch error:', err);
+      }
+    }
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Google authentication failed: missing email' });
+    }
+
+    let user = await User.findOne({ email });
+    let patient = null;
+
+    if (user) {
+      if (!user.isActive) {
+        return res.status(403).json({ success: false, message: 'Your account has been deactivated' });
+      }
+      if (user.role === 'patient') {
+        patient = await Patient.findOne({ userId: user._id });
+      }
+    } else {
+      if (isPatient) {
+        user = await User.create({
+          name: name || 'Google Patient',
+          email,
+          password: crypto.randomBytes(16).toString('hex'),
+          role: 'patient',
+          permissions: ['patient-dashboard'],
+          phone: req.body.phone || '0000000000',
+          isActive: true
+        });
+        patient = await Patient.create({
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          phone: req.body.phone || '0000000000',
+          clinicIds: [],
+          status: 'Active',
+          registrationDate: new Date()
+        });
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: 'No staff account found with this email. Please contact your clinic administrator to register.'
+        });
+      }
+    }
+
+    const jwtToken = jwt.sign(
+      { id: user._id, role: user.role, clinicId: user.clinicId || null },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const { password: _p, ...userOut } = user.toObject();
+    res.json({ token: jwtToken, user: userOut, patient: patient || undefined });
+  } catch (err) {
+    console.error('Google Login error:', err);
+    res.status(500).json({ success: false, message: 'Server error during Google Login' });
+  }
+});
+
+// ── FORGOT PASSWORD ───────────────────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account found with this email address' });
+    }
+
+    const token = crypto.randomBytes(20).toString('hex');
+    user.resetPasswordToken   = token;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    // Build reset link dynamically from referer/origin header
+    const origin = req.headers.referer || req.headers.origin || 'http://localhost:5174';
+    let baseOrigin = 'http://localhost:5174';
+    try { baseOrigin = new URL(origin).origin; } catch (e) {}
+    const resetLink = `${baseOrigin}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+
+    // Send real email if SMTP is configured, otherwise log link
+    try {
+      const { sendEmail } = await import('../utils/sendEmail.js');
+      await sendEmail({
+        to: email,
+        subject: 'Reset your password – CURELEX HMS',
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto">
+            <h2>Password Reset Request</h2>
+            <p>You requested to reset your password. Click the button below:</p>
+            <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#0f4c81;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Reset Password</a>
+            <p style="margin-top:16px;color:#64748b;font-size:13px;">This link expires in 1 hour. If you did not request this, ignore this email.</p>
+          </div>
+        `
+      });
+    } catch (_) {
+      console.log(`\n==================================================\nPASSWORD RESET LINK (no SMTP configured):\n${resetLink}\n==================================================\n`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset link sent. Check your email or the server console.',
+      resetLink // also returned for local dev convenience
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ── RESET PASSWORD ────────────────────────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body;
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, token, and new password are required' });
+    }
+
+    const user = await User.findOne({
+      email,
+      resetPasswordToken:   token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Password reset token is invalid or has expired' });
+    }
+
+    user.password             = newPassword;
+    user.resetPasswordToken   = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successful! You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

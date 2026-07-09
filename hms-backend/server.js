@@ -1,11 +1,14 @@
 // hms-backend/server.js
 
+// MUST be the very first import — loads .env before any other module runs
+import 'dotenv/config';
+
+import "./config/env.js"
 import { fileURLToPath } from 'url';
 import path from 'path';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import http from 'http';
 import { Server } from 'socket.io';
 import cron from 'node-cron';
@@ -16,6 +19,8 @@ import rateLimit from 'express-rate-limit';
 import Task from './models/Task.js';
 import Notification from './models/Notification.js';
 import User from './models/User.js';
+// import clinicApp from './clinic/clinic/app.js';
+import stripeWebhookRouter from './webhooks/stripeWebhook.js';
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -44,11 +49,10 @@ import medicineRoutes from './routes/medicines.js';
 import documentRoutes from './routes/documents.js';
 import telemedicineRoutes from './routes/telemedicine.js';
 import feedbackRoutes from './routes/feedback.js';
+import payrollRoutes from './routes/payroll.js';
 import imsRoutes from './ims/src/routes/index.js';
 import {notFound, errorHandler} from './ims/src/middleware/errorHandler.js';
-
-dotenv.config();
-
+import consultationRoutes from './routes/consultations.js';
 // __dirname fix (ESM)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +85,7 @@ app.use(cors({
     // 'https://curelex.in',
     // 'https://www.curelex.in',
     'http://localhost:5173',
+    'http://localhost:5174'
   ],
   credentials: true,
 }));
@@ -88,6 +93,8 @@ app.use(cors({
 app.use('/api/v1/ims/reports/download-pdf', helmet({ contentSecurityPolicy: false }));
 app.use('/api/reports/download-pdf',        helmet({ contentSecurityPolicy: false }));
 app.use(helmet());
+
+app.use('/api/clinic/webhooks/stripe', stripeWebhookRouter);
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
@@ -103,40 +110,114 @@ app.use((req, res, next) => {
 
 // MongoDB
 import { MongoMemoryServer } from 'mongodb-memory-server';
+// import { clinicConnection } from './clinic/clinic/config/db.js';
 
-// ── Seed super admin from .env on first boot ─────────────────────────────
+// ── Seed Demo Accounts and Super Admin on boot ───────────────────────────
 async function seedSuperAdmin() {
   try {
-    const existing = await User.findOne({ role: 'super_admin' });
-    if (existing) {
-      console.log('✅ Super Admin already exists — skipping seed');
-      return;
+    // 1. Seed Super Admin
+    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'superadmin@curelex.com';
+    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'Password123';
+    
+    let existingSuper = await User.findOne({ role: 'super_admin' });
+    if (!existingSuper) {
+      await User.create({
+        name: 'Super Admin',
+        email: superAdminEmail,
+        password: superAdminPassword,
+        role: 'super_admin',
+        clinicId: null,
+        permissions: [
+          'dashboard', 'patients', 'ipd', 'billing', 'billing-requests',
+          'prescriptions', 'pharmacy', 'lab', 'inventory',
+          'room-settings', 'staff', 'telemedicine', 'tokens', 'emergency', 'tasks', 'super'
+        ],
+        isActive: true,
+      });
+      console.log(`🚀 Seeded Super Admin: ${superAdminEmail} / ${superAdminPassword}`);
     }
 
-    const { SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD, SUPER_ADMIN_NAME } = process.env;
+    // Load Clinic model
+    const Clinic = (await import('./models/Clinic.js')).default;
+    const Patient = (await import('./models/Patient.js')).default;
 
-    if (!SUPER_ADMIN_EMAIL || !SUPER_ADMIN_PASSWORD) {
-      console.warn('⚠️  SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD not set in .env — skipping super admin seed');
-      return;
+    // Create a demo Clinic
+    let demoClinic = await Clinic.findOne({ name: 'Curelex Demo Clinic' });
+    if (!demoClinic) {
+      demoClinic = await Clinic.create({
+        name: 'Curelex Demo Clinic',
+        email: 'clinic@curelex.com',
+        phone: '1234567890',
+        type: 'clinic',
+        plan: 'pro',
+        status: 'Active'
+      });
+      console.log(`🚀 Seeded Demo Clinic: Curelex Demo Clinic`);
     }
 
-    await User.create({
-      name:     SUPER_ADMIN_NAME || 'Super Admin',
-      email:    SUPER_ADMIN_EMAIL,
-      password: SUPER_ADMIN_PASSWORD,
-      role:     'super_admin',
-      clinicId: null,
-      permissions: [
-        'dashboard', 'patients', 'ipd', 'billing', 'billing-requests',
-        'prescriptions', 'pharmacy', 'lab', 'inventory',
-        'room-settings', 'staff', 'telemedicine', 'tokens', 'emergency', 'tasks', 'super'
-      ],
-      isActive: true,
-    });
+    // 2. Seed Clinic Admin
+    const adminEmail = 'admin@curelex.com';
+    let existingAdmin = await User.findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      await User.create({
+        name: 'Clinic Admin',
+        email: adminEmail,
+        password: 'Password123',
+        role: 'admin',
+        clinicId: demoClinic._id,
+        permissions: [
+          'dashboard', 'patients', 'ipd', 'billing', 'billing-requests',
+          'pharmacy', 'lab', 'inventory', 'staff', 'room-settings', 'prescriptions'
+        ],
+        isActive: true,
+      });
+      console.log(`🚀 Seeded Clinic Admin: ${adminEmail} / Password123`);
+    }
 
-    console.log(`🚀 Super Admin seeded → ${SUPER_ADMIN_EMAIL}`);
+    // 3. Seed Doctor
+    const doctorEmail = 'doctor@curelex.com';
+    let existingDoctor = await User.findOne({ email: doctorEmail });
+    if (!existingDoctor) {
+      await User.create({
+        name: 'Dr. Elizabeth Blackwell',
+        email: doctorEmail,
+        password: 'Password123',
+        role: 'doctor',
+        clinicId: demoClinic._id,
+        permissions: ['dashboard', 'patients', 'ipd', 'lab', 'prescriptions', 'telemedicine'],
+        isActive: true,
+      });
+      console.log(`🚀 Seeded Doctor: ${doctorEmail} / Password123`);
+    }
+
+    // 4. Seed Patient
+    const patientEmail = 'patient@curelex.com';
+    let existingPatient = await User.findOne({ email: patientEmail });
+    if (!existingPatient) {
+      const patientUser = await User.create({
+        name: 'Lenin J',
+        email: patientEmail,
+        password: 'Password123',
+        role: 'patient',
+        clinicId: demoClinic._id,
+        permissions: ['patient-dashboard', 'appointments', 'prescriptions', 'profile', 'telemedicine'],
+        isActive: true,
+      });
+
+      await Patient.create({
+        userId: patientUser._id,
+        name: 'Lenin J',
+        email: patientEmail,
+        phone: '9876543210',
+        clinicIds: [demoClinic._id],
+        status: 'Active',
+        registrationDate: new Date()
+      });
+      console.log(`🚀 Seeded Patient: ${patientEmail} / Password123`);
+    }
+
   } catch (err) {
-    console.error('❌ Super admin seed failed:', err.message);
+    console.error('❌ Seeding failed:', err.message);
   }
 }
 
@@ -347,6 +428,13 @@ io.on('connection', (socket) => {
     });
   });
 
+  // socket.on('join_queue', ({ clinicId, doctorId, date }) => {
+  //   const room = `queue_${clinicId}_${doctorId}_${date}`;
+  //   socket.join(room);
+
+  //   console.log(`Joined ${room}`);
+// });
+
   socket.on('disconnect', () => {
     console.log('🔌 Socket disconnected:', socket.id);
     const doctorId = global.socketToDoctor.get(socket.id);
@@ -447,19 +535,34 @@ app.use('/api/medicines', medicineRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/telemedicine', telemedicineRoutes);
 app.use('/api/feedback', feedbackRoutes);
-
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/consultations', consultationRoutes);
 app.use('/api/v1/ims', imsRoutes);
+
+// app.use('/api/clinic', clinicApp);
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health check
-app.get('/', (req, res) => {
-  res.json({ message: 'HMS API Running' });
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        db: mongoose.connection.readyState === 1
+            ? 'connected'
+            : 'disconnected',
+        endpoints: {
+            hms: '/api',
+            ims: '/api/v1/ims',
+            clinic: '/api/clinic'
+        },
+        websockets: true
+    });
 });
 
 app.use(notFound);
 app.use(errorHandler);
+
+// await clinicConnection.asPromise();
 
 // Start server
 const PORT = process.env.PORT || 5000;

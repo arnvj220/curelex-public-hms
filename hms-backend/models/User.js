@@ -8,7 +8,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['super_admin','admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
+    enum: ['super_admin','admin', 'doctor', 'separate_doctor', 'nurse', 'receptionist', 'pharmacist', 'lab_technician', 'patient'],
     default: 'receptionist' 
   },
   department: { type: String },
@@ -40,6 +40,10 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  baseSalary: {
+    type: Number,
+    default: 0,
+  },
   bankDetails: {
     accountHolderName: { type: String },
     accountNumber: { type: String },
@@ -59,6 +63,12 @@ const UserSchema = new mongoose.Schema({
     },
   },
   lastLoginAt: { type: Date, default: null },
+  dailyTokenLimit: {
+    type: Number,
+    default: 0, // 0 = unlimited
+  },
+  resetPasswordToken:   { type: String, default: null },
+  resetPasswordExpires: { type: Date,   default: null },
 
 }, { timestamps: true });
 

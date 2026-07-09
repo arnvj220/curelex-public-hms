@@ -16,13 +16,11 @@ export default function DoctorEarnings() {
 
   useEffect(() => {
     loadEarnings();
-    loadPendingPayouts();
 
     // Listen for payout updates
     const handlePayoutApproved = (data) => {
       alert(`✅ Payout approved: ₹${data.amount}`);
       loadEarnings();
-      loadPendingPayouts();
     };
 
     on('telemedicine:payout-approved', handlePayoutApproved);
@@ -39,22 +37,14 @@ export default function DoctorEarnings() {
       if (data.success) {
         setEarnings(data.earnings);
         setRecentTransactions(data.recentTransactions || []);
+        if (data.pendingPayouts) {
+          setPendingPayouts(data.pendingPayouts);
+        }
       }
     } catch (err) {
       console.error('Failed to load earnings:', err);
     }
     setLoading(false);
-  };
-
-  const loadPendingPayouts = async () => {
-    try {
-      const { data } = await API.get('/telemedicine/pending-payouts');
-      if (data.success) {
-        setPendingPayouts(data.pendingPayouts || []);
-      }
-    } catch (err) {
-      console.error('Failed to load pending payouts:', err);
-    }
   };
 
   const handleRequestPayout = async (requestId) => {
@@ -66,7 +56,6 @@ export default function DoctorEarnings() {
       if (data.success) {
         alert('✅ Payout request submitted successfully!');
         loadEarnings();
-        loadPendingPayouts();
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to request payout');

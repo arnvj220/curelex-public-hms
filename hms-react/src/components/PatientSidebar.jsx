@@ -1,7 +1,7 @@
-// hms-react/src/components/PatientSidebar.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import curelexLogo from '../../assets/logo.png';
 
 export default function PatientSidebar({
   activeItem,
@@ -14,6 +14,15 @@ export default function PatientSidebar({
 }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
+
+  const [showLogo, setShowLogo] = React.useState(true);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setShowLogo((prev) => !prev);
+    }, 4000); // Toggles view every 4 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -43,11 +52,55 @@ export default function PatientSidebar({
         <i className="fas fa-times" />
       </button>
 
-      <div className="pd-sidebar__profile">
-        <div className="pd-sidebar__avatar">{initials || 'P'}</div>
-        <div>
-          <div className="pd-sidebar__name">{patientName || 'Patient'}</div>
-          <div className="pd-sidebar__phone">{patientEmail || ''}</div>
+      <div className="pd-sidebar__profile" style={{ 
+        position: 'relative', 
+        height: '92px', 
+        padding: '24px', 
+        borderBottom: '1px solid var(--border)',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        {/* View 1: Logo */}
+        <div style={{
+          position: 'absolute',
+          left: '24px',
+          right: '24px',
+          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+          opacity: showLogo ? 1 : 0,
+          transform: showLogo ? 'translateY(0)' : 'translateY(-15px)',
+          pointerEvents: showLogo ? 'auto' : 'none',
+          display: 'flex',
+          alignItems: 'center',
+        }}>
+          <img 
+            src={curelexLogo} 
+            alt="Curelex" 
+            style={{ height: '36px', objectFit: 'contain' }} 
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        </div>
+
+        {/* View 2: Greeting */}
+        <div style={{
+          position: 'absolute',
+          left: '24px',
+          right: '24px',
+          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+          opacity: !showLogo ? 1 : 0,
+          transform: !showLogo ? 'translateY(0)' : 'translateY(15px)',
+          pointerEvents: !showLogo ? 'auto' : 'none',
+        }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {(() => {
+              const hour = new Date().getHours();
+              const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+              return `${greeting}, ${patientName.split(" ")[0]}`;
+            })()}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {patientEmail}
+          </div>
         </div>
       </div>
 

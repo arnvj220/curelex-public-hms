@@ -21,7 +21,6 @@ const TelemedicineSchema = new mongoose.Schema({
   clinicId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Clinic',
-    required: true,
   },
   
   // Request details

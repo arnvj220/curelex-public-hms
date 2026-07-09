@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 // ── Staff / Admin Authentication ─────────────────────────────────────────
 // Used by clinic staff routes. Requires clinicId inside the JWT,
 // EXCEPT for super_admin whose clinicId is intentionally null.
-const NULL_CLINIC_ROLES = ['super_admin', 'patient'];
+const NULL_CLINIC_ROLES = ['super_admin', 'patient', 'separate_doctor'];
 export const auth = function (req, res, next) {
   const token = req.header('Authorization')?.replace('Bearer ', '');
 

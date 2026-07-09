@@ -13,18 +13,17 @@ const inventoryService = {
   addTransaction: (id, data) => API.post(`/inventory/${id}/transaction`, data),
   getTransactions: (id, limit = 50) => API.get(`/inventory/${id}/transactions?limit=${limit}`),
   
-  // Alerts & Reports
+  // Alerts & Reports - these return arrays directly
   getLowStock: () => API.get('/inventory/alerts/low-stock'),
   getOutOfStock: () => API.get('/inventory/alerts/out-of-stock'),
+  getDueMaintenance: () => API.get('/inventory/alerts/due-maintenance'),
+  getOverdueMaintenance: () => API.get('/inventory/alerts/overdue-maintenance'),
   getValuation: (category) => API.get(`/inventory/reports/valuation${category ? `?category=${category}` : ''}`),
   
   // Equipment specific
-  getEquipment: (params) => API.get('/equipment', { params }),
-  getDueMaintenance: () => API.get('/equipment/due-maintenance'),
-  getOverdueMaintenance: () => API.get('/equipment/overdue-maintenance'),
-  logMaintenance: (id, data) => API.post(`/equipment/${id}/maintenance`, data),
-  updateEquipmentCondition: (id, data) => API.patch(`/equipment/${id}/condition`, data),
-  getMaintenanceHistory: (id) => API.get(`/equipment/${id}/maintenance-history`),
+  getEquipment: (params) => API.get('/inventory/equipment', { params }),
+  logMaintenance: (id, data) => API.post(`/inventory/${id}/maintenance`, data),
+  getMaintenanceHistory: (id) => API.get(`/inventory/${id}/maintenance-history`),
 };
 
 export default inventoryService;

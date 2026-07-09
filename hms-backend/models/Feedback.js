@@ -10,7 +10,7 @@ const FeedbackSchema = new mongoose.Schema({
   clinicId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Clinic', 
-    required: true 
+    required: false 
   },
   doctorId: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -19,7 +19,7 @@ const FeedbackSchema = new mongoose.Schema({
   },
   clinicRating: { 
     type: Number, 
-    required: true, 
+    required: false, 
     min: 1, 
     max: 5 
   },

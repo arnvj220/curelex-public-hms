@@ -94,6 +94,7 @@ const ROLE_META = {
   receptionist: { label: 'Receptionist', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)' },
   pharmacist: { label: 'Pharmacist', color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
   lab_technician: { label: 'Lab Technician', color: '#fb923c', bg: 'rgba(251,146,60,0.15)' },
+  separate_doctor: { label: 'Solo Doctor', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)' },
 };
 
 export default function Layout() {
@@ -106,7 +107,7 @@ export default function Layout() {
   const socketRef = useRef(rawSocket);
 
   // ── Determine user role ──
-  const isDoctor = user?.role?.toLowerCase() === 'doctor';
+  const isDoctor = user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'separate_doctor';
   const isAdmin = user?.role?.toLowerCase() === 'admin';
   const isSuperAdmin = user?.role?.toLowerCase() === 'super_admin';
 
@@ -196,6 +197,10 @@ export default function Layout() {
     items: section.items.filter(item => {
       // ── Hide telemedicine from admin (but NOT super_admin) ──
       if (item.perm === 'telemedicine' && isAdmin && !isSuperAdmin) return false;
+      
+      // ── Hide tokens, emergency, patients, and tasks from separate_doctor ──
+      if (user?.role === 'separate_doctor' && (item.label === 'Token Queue' || item.label === 'Emergency Dept' || item.label === 'Patients' || item.label === 'Task Allocation')) return false;
+
       return hasPerm(item.perm);
     }),
   })).filter(s => s.items.length > 0);
@@ -245,7 +250,7 @@ export default function Layout() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            {notifications.length > 0 && (
+            {notifications.filter(n => !n.read).length > 0 && (
               <span style={{
                 position: 'absolute', top: 0, right: 0,
                 background: '#ef4444', color: '#fff',
@@ -254,7 +259,7 @@ export default function Layout() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '0 3px',
               }}>
-                {notifications.length}
+                {notifications.filter(n => !n.read).length}
               </span>
             )}
           </button>
@@ -283,9 +288,21 @@ export default function Layout() {
                   }}
                     onClick={async () => {
                       if (!n.read && n._id && !n._id.startsWith('sla-')) {
-                        try { await taskService.markNotificationRead(n._id); } catch {}
+                        try { 
+                          await taskService.markNotificationRead(n._id); 
+                          setNotifications(prev => prev.map(notif => notif._id === n._id ? { ...notif, read: true } : notif));
+                        } catch {}
                       }
-                      if (n.taskId) navigate(`/dashboard/tasks`);
+                      if (n.taskId) {
+                        const msg = n.message.toLowerCase();
+                        if (msg.includes('payout')) {
+                          navigate('/dashboard/doctor-earnings');
+                        } else if (msg.includes('telemedicine') || msg.includes('consultation') || msg.includes('payment received')) {
+                          navigate('/dashboard/telemedicine');
+                        } else {
+                          navigate('/dashboard/tasks');
+                        }
+                      }
                     }}
                   >
                     <div style={{ fontWeight: n.read ? 400 : 600 }}>{n.message}</div>
