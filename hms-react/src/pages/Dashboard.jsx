@@ -6,8 +6,11 @@ import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import TokenDashboard from '../components/TokenDashboard';
 import inventoryService from '../services/inventoryService';
+import heroAdmin from "../../assets/hero-admin.png";
+import curelexLogo from "../../assets/logo.png";
+import heroDoctor from "../../assets/hero-doctor.jpg";
 
-const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /* ── Shared UI helpers ───────────────────────────────────────── */
 function StatCard({ label, value, icon, color }) {
@@ -111,10 +114,10 @@ function RoomSummary({ clinicId }) {
 
   if (!roomConfigs.length) return null;
 
-  const totalRooms     = roomConfigs.reduce((s, r) => s + r.totalRooms, 0);
+  const totalRooms = roomConfigs.reduce((s, r) => s + r.totalRooms, 0);
   const availableRooms = roomConfigs.reduce((s, r) => s + r.availableRooms, 0);
-  const occupiedRooms  = totalRooms - availableRooms;
-  const occupancyRate  = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+  const occupiedRooms = totalRooms - availableRooms;
+  const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
   const thStyle = { padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b' };
   const tdStyle = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid #f1f5f9' };
@@ -142,10 +145,10 @@ function RoomSummary({ clinicId }) {
           </thead>
           <tbody>
             {roomConfigs.map(config => {
-              const pct   = config.totalRooms > 0 ? (config.availableRooms / config.totalRooms) * 100 : 0;
+              const pct = config.totalRooms > 0 ? (config.availableRooms / config.totalRooms) * 100 : 0;
               const isFull = config.availableRooms === 0;
-              const isLow  = config.availableRooms < config.totalRooms / 2;
-              const icons  = { 'General Ward': '🛏️', 'Semi-Private': '🛏️🛏️', 'Private Room': '⭐', 'ICU': '🚨' };
+              const isLow = config.availableRooms < config.totalRooms / 2;
+              const icons = { 'General Ward': '🛏️', 'Semi-Private': '🛏️🛏️', 'Private Room': '⭐', 'ICU': '🚨' };
               return (
                 <tr key={config.roomType}>
                   <td style={tdStyle}>
@@ -207,7 +210,7 @@ function RoomSummary({ clinicId }) {
 // ── DoctorEmergencyAlerts ─────────────────────────────────────────────────
 function DoctorEmergencyAlerts() {
   const { user, socket } = useAuth();  // ← use socket from AuthContext, not a new one
-  const [alerts, setAlerts]         = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -272,22 +275,22 @@ function DoctorEarningsWidget() {
   const { user, socket } = useAuth();
   const navigate = useNavigate();
   const [earnings, setEarnings] = useState({ total: 0, pending: 0, processing: 0, completed: 0 });
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const loadEarnings = useCallback(async () => {
     try {
       const doctorId = user?._id || user?.id;
-      const url      = user?.role === 'super_admin' ? '/telemedicine/pending-payouts' : `/telemedicine/earnings/${doctorId}`;
+      const url = user?.role === 'super_admin' ? '/telemedicine/pending-payouts' : `/telemedicine/earnings/${doctorId}`;
       const { data } = await API.get(url);
       if (user?.role === 'super_admin') {
         const total = data.totalAmount || 0;
         setEarnings({ total, pending: total, processing: 0, completed: 0 });
       } else if (data.success) {
         setEarnings({
-          total:      data.earnings.total      || 0,
-          pending:    data.earnings.pending    || 0,
+          total: data.earnings.total || 0,
+          pending: data.earnings.pending || 0,
           processing: data.earnings.processing || 0,
-          completed:  data.earnings.completed  || 0,
+          completed: data.earnings.completed || 0,
         });
       }
     } catch (err) {
@@ -328,10 +331,10 @@ function DoctorEarningsWidget() {
 
       <div className="grid-4-col">
         {[
-          { label: 'Total Earned',     value: earnings.total,      bg: '#f0fdf4', color: '#16a34a' },
-          { label: 'Pending Payout',   value: earnings.pending,    bg: '#fef3c7', color: '#f59e0b' },
-          { label: 'Processing',       value: earnings.processing, bg: '#dbeafe', color: '#3b82f6' },
-          { label: 'Completed Payout', value: earnings.completed,  bg: '#dcfce7', color: '#10b981' },
+          { label: 'Total Earned', value: earnings.total, bg: '#f0fdf4', color: '#16a34a' },
+          { label: 'Pending Payout', value: earnings.pending, bg: '#fef3c7', color: '#f59e0b' },
+          { label: 'Processing', value: earnings.processing, bg: '#dbeafe', color: '#3b82f6' },
+          { label: 'Completed Payout', value: earnings.completed, bg: '#dcfce7', color: '#10b981' },
         ].map(({ label, value, bg, color }) => (
           <div key={label} className="stat-card" style={{ background: bg, padding: 12, borderRadius: 8 }}>
             <div style={{ fontSize: 12, color: '#64748b' }}>{label}</div>
@@ -360,7 +363,7 @@ function DoctorEarningsWidget() {
 // ── DoctorTelemedicineQuickStats ──────────────────────────────────────────
 function DoctorTelemedicineQuickStats() {
   const { user } = useAuth();
-  const [stats, setStats]   = useState({ total: 0, pending: 0, ongoing: 0 });
+  const [stats, setStats] = useState({ total: 0, pending: 0, ongoing: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -379,9 +382,9 @@ function DoctorTelemedicineQuickStats() {
     <div style={{ marginTop: 16 }}>
       <h3 style={{ fontSize: 15, marginBottom: 12 }}>🩺 Your Telemedicine Practice</h3>
       <div className="stat-grid">
-        <StatCard label="Total Consultations" value={stats.total}   icon="🩺" color="#dbeafe" />
-        <StatCard label="Pending Requests"    value={stats.pending} icon="⏳" color="#fef3c7" />
-        <StatCard label="Ongoing"             value={stats.ongoing} icon="🔄" color="#d1fae5" />
+        <StatCard label="Total Consultations" value={stats.total} icon="🩺" color="#dbeafe" />
+        <StatCard label="Pending Requests" value={stats.pending} icon="⏳" color="#fef3c7" />
+        <StatCard label="Ongoing" value={stats.ongoing} icon="🔄" color="#d1fae5" />
       </div>
     </div>
   );
@@ -394,10 +397,10 @@ function AdminPayoutManagement() {
   const { show: showToast, element: toastEl } = useToast();
 
   const [pendingPayouts, setPendingPayouts] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
-  const [confirm, setConfirm]     = useState(null); // { message, onConfirm }
+  const [confirm, setConfirm] = useState(null); // { message, onConfirm }
 
   // ── All hooks must be called before any conditional return ────────────────
   const loadPendingPayouts = useCallback(async () => {
@@ -434,9 +437,9 @@ function AdminPayoutManagement() {
         setProcessing(true);
         try {
           const { data } = await API.patch(`/telemedicine/${id}/approve-payout`, {
-            payoutId:     `PAY-${Date.now()}`,
+            payoutId: `PAY-${Date.now()}`,
             payoutMethod: 'bank_transfer',
-            notes:        'Payout approved by admin',
+            notes: 'Payout approved by admin',
           });
           if (data.success) {
             showToast('Payout approved successfully', 'success');
@@ -566,14 +569,15 @@ export default function Dashboard() {
   const isClinicUser = clinicType === 'clinic';
   const isHospitalUser = clinicType === 'hospital';
 
-  const isDoctor     = user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'separate_doctor';
-  const isAdmin      = user?.role?.toLowerCase() === 'admin';
+  const isDoctor = user?.role?.toLowerCase() === 'doctor' || user?.role?.toLowerCase() === 'separate_doctor';
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
   const isSuperAdmin = user?.role?.toLowerCase() === 'super_admin';
   const showDoctorWidgets = isDoctor || isSuperAdmin;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   const clinicId = getEffectiveClinicId() || 'default';
 
-  const [stats, setStats]   = useState(null);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState({
     lowStock: [], outOfStock: [], dueMaintenance: [], overdueMaintenance: [],
@@ -586,13 +590,25 @@ export default function Dashboard() {
       navigate('/clinic-dashboard', { replace: true });
       return;
     }
-    
+
     // If user is a hospital admin, they can stay on dashboard
     if (user?.role === 'admin' && isHospitalUser) {
       // Hospital admins can use the main dashboard
       return;
     }
   }, [user, clinicType, navigate]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     API.get(`/dashboard/stats?clinicId=${clinicId}`)
@@ -611,10 +627,10 @@ export default function Dashboard() {
           inventoryService.getOverdueMaintenance(clinicId).catch(() => ({ data: [] })),
         ]);
         setNotifications({
-          lowStock:            lowStock.data            || [],
-          outOfStock:          outOfStock.data          || [],
-          dueMaintenance:      dueMaintenance.data      || [],
-          overdueMaintenance:  overdueMaintenance.data  || [],
+          lowStock: lowStock.data || [],
+          outOfStock: outOfStock.data || [],
+          dueMaintenance: dueMaintenance.data || [],
+          overdueMaintenance: overdueMaintenance.data || [],
         });
       } catch (err) {
         console.error('Failed to fetch notifications:', err);
@@ -631,21 +647,21 @@ export default function Dashboard() {
   const subtitle = isSuperAdmin
     ? 'Super Admin — full system access across all clinics.'
     : user?.role === 'pharmacist'
-    ? 'Manage pharmacy inventory and monitor stock alerts.'
-    : isAdmin
-    ? 'Full system overview — complete access.'
-    : permList.length <= 1
-    ? 'Welcome! Contact admin to grant you module access.'
-    : `Access: ${permList.filter(p => p !== 'dashboard').join(', ')}.`;
+      ? 'Manage pharmacy inventory and monitor stock alerts.'
+      : isAdmin
+        ? 'Full system overview — complete access.'
+        : permList.length <= 1
+          ? 'Welcome! Contact admin to grant you module access.'
+          : `Access: ${permList.filter(p => p !== 'dashboard').join(', ')}.`;
 
   const chartData = stats?.monthlyRevenue?.map(m => ({
     name: monthNames[m._id.month - 1],
     revenue: m.total,
   })) || [];
 
-  const showTokenQueue       = hasPerm('patients') && user?.role !== 'separate_doctor';
-  const showInventoryAlerts  = hasPerm('inventory') || hasPerm('pharmacy');
-  const showRoomSummary      = hasPerm('ipd') || hasPerm('admin');
+  const showTokenQueue = hasPerm('patients') && user?.role !== 'separate_doctor';
+  const showInventoryAlerts = hasPerm('inventory') || hasPerm('pharmacy');
+  const showRoomSummary = hasPerm('ipd') || hasPerm('admin');
 
   const totalAlerts =
     notifications.lowStock.length + notifications.outOfStock.length +
@@ -672,18 +688,223 @@ export default function Dashboard() {
 
       {showDoctorWidgets && user?.role !== 'separate_doctor' && <DoctorEmergencyAlerts />}
 
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Welcome back, <span>{user?.name?.split(' ')[0]}</span> 👋</h1>
-          <p className="text-muted text-small">{subtitle}</p>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          background:
+            isDoctor
+              ? "linear-gradient(135deg,#f4fffb,#dcfce7)"
+              : "linear-gradient(135deg,#f8f5ff,#ede9fe)",
+          borderRadius: "28px",
+          padding: isMobile ? "28px 22px" : "48px",
+          marginBottom: "28px",
+          overflow: "visible",
+          position: "relative",
+          border:
+            isDoctor
+              ? "1px solid rgba(16,185,129,.18)"
+              : "1px solid rgba(124,58,237,.12)",
+        }}
+      >
+
+        <div
+          style={{
+            position: "absolute",
+            top: isMobile ? "18px" : "24px",
+            right: isMobile ? "18px" : "32px",
+            zIndex: 10,
+            background: "rgba(255,255,255,0.94)",
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+            padding: isMobile ? "8px 14px" : "12px 20px",
+            borderRadius: isMobile ? "16px" : "20px",
+            border: "1px solid rgba(255,255,255,.55)",
+            boxShadow: "0 20px 60px rgba(124,58,237,.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={curelexLogo}
+            alt="Curelex"
+            style={{
+              width: isMobile ? "95px" : "130px",
+              display: "block",
+            }}
+          />
         </div>
-        {showInventoryAlerts && totalAlerts > 0 && (
-          <div style={{ background: notifications.overdueMaintenance.length > 0 ? '#fee2e2' : '#fef3c7', borderRadius: 30, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${notifications.overdueMaintenance.length > 0 ? '#fca5a5' : '#fcd34d'}` }}>
-            <span style={{ fontSize: 20 }}>🔔</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{totalAlerts} Alert{totalAlerts !== 1 ? 's' : ''}</div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>{notifications.lowStock.length} low stock · {notifications.overdueMaintenance.length} overdue maintenance</div>
-            </div>
+
+
+        <div
+          style={{
+            flex: 1,
+            minWidth: "260px",
+            paddingTop: isMobile ? "75px" : 0,
+          }}
+        >
+
+          <h1
+            style={{
+              margin: 0,
+              fontSize: isMobile ? "28px" : "44px",
+              fontWeight: 800,
+              lineHeight: 1.08,
+              color: "#111827",
+            }}
+          >
+            {isDoctor ? (
+              <>
+                Good Morning,
+                <br />
+                <span style={{ color: "#059669" }}>
+                  Dr. {user?.name?.split(" ")[0]}
+                </span>
+              </>
+            ) : (
+              <>
+                Welcome Back,
+                <br />
+                <span style={{ color: "#7c3aed" }}>
+                  {user?.role === "super_admin"
+                    ? "Super Admin"
+                    : "Admin"}
+                </span>
+              </>
+            )}
+          </h1>
+
+          <p
+            style={{
+              marginTop: "20px",
+              fontSize: isMobile ? "15px" : "18px",
+              color: "#4b5563",
+              maxWidth: "420px",
+              lineHeight: 1.7,
+            }}
+          >
+            {isDoctor
+              ? "Caring for patients, one consultation at a time."
+              : "Manage your hospital with confidence and keep every department running smoothly."}
+          </p>
+
+          <button
+            onClick={() => {
+              document
+                .getElementById("analytics-section")
+                ?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+            }}
+            style={{
+              marginTop: "26px",
+              background: isDoctor ? "#059669" : "#7c3aed",
+              color: "#fff",
+              border: "none",
+              padding: isMobile ? "12px 20px" : "14px 24px",
+              fontSize: isMobile ? "14px" : "15px",
+              borderRadius: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {isDoctor
+              ? "📅 View Today's Appointments"
+              : "📊 Go to Analytics"}
+          </button>
+        </div>
+
+        {!isMobile && (
+          <div
+            style={{
+              flex: 1,
+              position: "relative",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {/* Purple glow */}
+            <div
+              style={{
+                position: "absolute",
+                width: "420px",
+                height: "420px",
+                borderRadius: "50%",
+                background: isDoctor
+                  ? "radial-gradient(circle, rgba(16,185,129,.14), transparent 70%)"
+                  : "radial-gradient(circle, rgba(124,58,237,.14), transparent 70%)",
+                filter: "blur(10px)",
+                zIndex: 0,
+              }}
+            />
+
+
+            {/* Hero Illustration */}
+
+
+
+            <div
+              style={{
+                position: "absolute",
+                top: "45px",
+                right: "65px",
+                width: "180px",
+                height: "180px",
+                background: isDoctor
+                  ? "radial-gradient(circle, rgba(16,185,129,.10), transparent 70%)"
+                  : "radial-gradient(circle, rgba(124,58,237,.10), transparent 70%)",
+                filter: "blur(20px)",
+                zIndex: 1,
+                pointerEvents: "none",
+              }}
+            />
+
+            {isDoctor ? (
+              <div
+                style={{
+                  width: "610px",
+                  height: "430px",
+                  overflow: "hidden",
+                  position: "relative",
+                  borderTopLeftRadius: "220px",
+                  borderBottomLeftRadius: "220px",
+                  borderTopRightRadius: "220px",
+                  borderBottomRightRadius: "220px",
+                  background: "linear-gradient(135deg,#eefcf7,#dff8ee)",
+                }}
+              >
+                <img
+                  src={heroDoctor}
+                  alt="Doctor"
+                  style={{
+                    position: "absolute",
+
+                    width: "138%",
+                    height: "138%",
+
+                    left: "-20%",
+                    top: "-15%",
+
+                    objectFit: "cover",
+                  }}
+                />
+              </div>
+            ) : (
+              <img
+                src={heroAdmin}
+                alt="Admin"
+                style={{
+                  width: "112%",
+                  maxWidth: "720px",
+                  objectFit: "contain",
+                  filter: "drop-shadow(0 30px 70px rgba(124,58,237,.18))",
+                }}
+              />
+            )}
           </div>
         )}
       </div>
@@ -692,7 +913,7 @@ export default function Dashboard() {
       <div className="stat-grid">
         {hasPerm('patients') && user?.role !== 'separate_doctor' && (
           <>
-            <StatCard label="Total Patients"  value={stats?.totalPatients  || 0} icon="👤" color="#dbeafe" />
+            <StatCard label="Total Patients" value={stats?.totalPatients || 0} icon="👤" color="#dbeafe" />
             <StatCard label="Active Patients" value={stats?.activePatients || 0} icon="🟢" color="#d1fae5" />
           </>
         )}
@@ -704,8 +925,8 @@ export default function Dashboard() {
         )}
         {showInventoryAlerts && (
           <>
-            <StatCard label="Low Stock Items" value={notifications.lowStock.length}    icon="⚠️" color="#fef3c7" />
-            <StatCard label="Out of Stock"    value={notifications.outOfStock.length}  icon="❌" color="#fee2e2" />
+            <StatCard label="Low Stock Items" value={notifications.lowStock.length} icon="⚠️" color="#fef3c7" />
+            <StatCard label="Out of Stock" value={notifications.outOfStock.length} icon="❌" color="#fee2e2" />
           </>
         )}
       </div>
@@ -724,10 +945,10 @@ export default function Dashboard() {
             <h3 style={{ marginBottom: 16 }}>📊 Today's Overview</h3>
             <div className="grid-4-col">
               {[
-                { label: 'Total Medicines', value: stats.totalMeds    || 0, color: '#0f4c81' },
-                { label: 'Low Stock',       value: stats.lowStockItems || 0, color: '#f59e0b' },
-                { label: 'Out of Stock',    value: stats.outOfStock   || 0, color: '#ef4444' },
-                { label: 'Pending Orders',  value: stats.pendingOrders || 0, color: '#0f4c81' },
+                { label: 'Total Medicines', value: stats.totalMeds || 0, color: '#0f4c81' },
+                { label: 'Low Stock', value: stats.lowStockItems || 0, color: '#f59e0b' },
+                { label: 'Out of Stock', value: stats.outOfStock || 0, color: '#ef4444' },
+                { label: 'Pending Orders', value: stats.pendingOrders || 0, color: '#0f4c81' },
               ].map(({ label, value, color }) => (
                 <div key={label} className="stat-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                   <span style={{ fontSize: 16, fontWeight: 600 }}>{label}</span>
@@ -832,7 +1053,10 @@ export default function Dashboard() {
 
       {/* Chart */}
       {hasPerm('billing') && (
-        <div className="grid-2-col">
+        <div
+          id="analytics-section"
+          className="grid-2-col"
+        >
           <div className="card">
             <h3 style={{ marginBottom: 16, fontSize: 15 }}>Monthly Revenue (Last 6 Months)</h3>
             <div className="chart-container" style={{ width: '100%', height: 250 }}>
