@@ -6,9 +6,15 @@ import { io } from 'socket.io-client';
 // ── Singleton socket — created once, lives for the app lifetime ──────────────
 let socketInstance = null;
 
+// In prod, default to same-origin (undefined -> socket.io-client uses window.location)
+// so it works behind any domain without a rebuild; override with VITE_SOCKET_URL
+// if the API lives elsewhere. Note: socket.io-client only same-origins on `undefined`,
+// not on an empty string, so the fallback must stay `undefined`.
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:5000' : undefined);
+
 function getSocket() {
   if (!socketInstance) {
-    socketInstance = io('http://localhost:5000', {
+    socketInstance = io(SOCKET_URL, {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
       reconnection: true,

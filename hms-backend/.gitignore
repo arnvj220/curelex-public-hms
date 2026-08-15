@@ -23,3 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Uploaded patient/clinic files — never commit real uploads to a public repo.
+# Recursive: also covers ims/uploads/, not just the top-level uploads/ dir.
+**/uploads/*
+!**/uploads/.gitkeep
+
+# Local MongoDB data files (raw WiredTiger storage — hundreds of MB, never belongs in git)
+data/

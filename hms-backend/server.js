@@ -57,6 +57,29 @@ import consultationRoutes from './routes/consultations.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ---------------- CORS ORIGINS ----------------
+// Prod origins come from env (CLIENT_URL + optional comma-separated ALLOWED_ORIGINS).
+// Localhost dev origins are only added outside production.
+const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:5174'];
+const envOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const allowedOrigins = [
+  ...new Set([
+    ...envOrigins,
+    ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+    ...(process.env.NODE_ENV === 'production' ? [] : DEV_ORIGINS),
+  ]),
+];
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  throw new Error(
+    'No CORS origins configured for production. Set CLIENT_URL and/or ALLOWED_ORIGINS.'
+  );
+}
+
 // App setup
 const app = express();
 const server = http.createServer(app);
@@ -64,7 +87,7 @@ const server = http.createServer(app);
 // Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
@@ -81,12 +104,7 @@ app.use((req, res, next) => {
 
 // Middleware
 app.use(cors({
-  origin: [
-    // 'https://curelex.in',
-    // 'https://www.curelex.in',
-    'http://localhost:5173',
-    'http://localhost:5174'
-  ],
+  origin: allowedOrigins,
   credentials: true,
 }));
 
@@ -109,7 +127,8 @@ app.use((req, res, next) => {
 });
 
 // MongoDB
-import { MongoMemoryServer } from 'mongodb-memory-server';
+// NOTE: mongodb-memory-server is a devDependency (test-only fallback below) and is
+// loaded via dynamic import so a `npm ci --omit=dev` production install never needs it.
 // import { clinicConnection } from './clinic/clinic/config/db.js';
 
 // ── Seed Demo Accounts and Super Admin on boot ───────────────────────────
@@ -221,14 +240,23 @@ async function seedSuperAdmin() {
   }
 }
 
+if (process.env.NODE_ENV === 'production' && !process.env.MONGO_URI) {
+  throw new Error('MONGO_URI is required in production — refusing to start on an ephemeral in-memory database.');
+}
+
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('MongoDB Connected');
     await seedSuperAdmin();
   })
   .catch(async err => {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ MongoDB connection failed in production:', err.message);
+      process.exit(1);
+    }
     console.log('⚠️ MongoDB connection failed or URI missing. Starting in-memory database as fallback for testing...');
     try {
+      const { MongoMemoryServer } = await import('mongodb-memory-server');
       const mongoServer = await MongoMemoryServer.create();
       const mongoUri = mongoServer.getUri();
       await mongoose.connect(mongoUri);

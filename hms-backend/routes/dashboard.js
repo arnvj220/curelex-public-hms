@@ -84,28 +84,39 @@ router.get('/stats', auth, async (req, res) => {
     // why patient-derived counts always showed 0 regardless of real data.
     const patientClinicFilter = { clinicIds: clinicId };
 
+    // ── FIX: Appointment.clinicId, Billing.clinicId, and Admission.clinicId
+    // are declared as plain Strings in their schemas (unlike Patient.clinicIds
+    // and Inventory/Lab.clinicId, which are real ObjectId refs). MongoDB never
+    // matches a stored String against a queried ObjectId — even when the hex
+    // text is identical, the BSON types differ — so every query below that used
+    // the ObjectId `clinicId` against these three models always returned
+    // zero/empty, regardless of how much real data existed. Use the string
+    // form for those three; keep the ObjectId form for the genuinely
+    // ObjectId-typed fields (Patient.clinicIds, Inventory.clinicId, Lab.clinicId).
+    const clinicIdStr = clinicId ? clinicId.toString() : null;
+
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
 
     /* ── Helpers shared across roles ──────────────────────── */
-    const todayAppointments = await Appointment.countDocuments({ 
-      clinicId, 
-      date: { $gte: today, $lt: tomorrow } 
+    const todayAppointments = await Appointment.countDocuments({
+      clinicId: clinicIdStr,
+      date: { $gte: today, $lt: tomorrow }
     });
-    const pendingAppointments = await Appointment.countDocuments({ 
-      clinicId, 
-      status: 'Scheduled' 
+    const pendingAppointments = await Appointment.countDocuments({
+      clinicId: clinicIdStr,
+      status: 'Scheduled'
     });
     const recentAppointments = await Appointment
-      .find({ clinicId, date: { $gte: today, $lt: tomorrow } })
+      .find({ clinicId: clinicIdStr, date: { $gte: today, $lt: tomorrow } })
       .populate('patient', 'name')
       .populate('doctor', 'name')
       .sort({ time: 1 })
       .limit(5);
 
-    const admittedPatients = await Admission.countDocuments({ 
-      clinicId, 
-      status: 'Admitted' 
+    const admittedPatients = await Admission.countDocuments({
+      clinicId: clinicIdStr,
+      status: 'Admitted'
     });
 
     /* ──────────────────────────────────────────────────────
@@ -120,10 +131,10 @@ router.get('/stats', auth, async (req, res) => {
         Patient.countDocuments(patientClinicFilter),
         Patient.countDocuments({ ...patientClinicFilter, status: 'Active' }),
         Billing.aggregate([
-          { $match: { clinicId, paymentStatus: 'Paid' } },
+          { $match: { clinicId: clinicIdStr, paymentStatus: 'Paid' } },
           { $group: { _id: null, total: { $sum: '$totalAmount' } } },
         ]),
-        Billing.countDocuments({ clinicId, paymentStatus: 'Pending' }),
+        Billing.countDocuments({ clinicId: clinicIdStr, paymentStatus: 'Pending' }),
         Inventory.countDocuments({ clinicId, quantity: { $lt: 10 } }),
         // ✅ FIX: Lab.status enum is ['Ordered', 'Sample Collected',
         // 'Processing', 'Completed', 'Cancelled'] — there is no 'Pending'
@@ -134,7 +145,7 @@ router.get('/stats', auth, async (req, res) => {
         Billing.aggregate([
           {
             $match: {
-              clinicId,
+              clinicId: clinicIdStr,
               paymentStatus: 'Paid',
               createdAt: { $gte: sixMonthsAgo }
             }
@@ -157,7 +168,7 @@ router.get('/stats', auth, async (req, res) => {
         ])
       ]);
 
-      const recentAdmissions = await Admission.find({ clinicId, status: 'Admitted' })
+      const recentAdmissions = await Admission.find({ clinicId: clinicIdStr, status: 'Admitted' })
         .populate('patient', 'name patientId')
         .populate('doctor', 'name')
         .sort({ admissionDate: -1 })
@@ -183,7 +194,7 @@ router.get('/stats', auth, async (req, res) => {
        DOCTOR — my patients + my appointments + labs + IPD
     ────────────────────────────────────────────────────── */
     if (role === 'doctor' || role === 'separate_doctor') {
-      const myPatients = await Appointment.distinct('patient', { clinicId, doctor: userId });
+      const myPatients = await Appointment.distinct('patient', { clinicId: clinicIdStr, doctor: userId });
       // ✅ FIX: same Lab.status enum issue as above, plus Lab has no
       // `doctor` field on the schema (it references patient/orderedBy) —
       // querying `doctor: userId` here would never match anything even if
@@ -193,7 +204,7 @@ router.get('/stats', auth, async (req, res) => {
         clinicId,
         status: { $in: ['Ordered', 'Sample Collected', 'Processing'] },
       });
-      const myAdmittedPatients = await Admission.countDocuments({ clinicId, doctor: userId, status: 'Admitted' });
+      const myAdmittedPatients = await Admission.countDocuments({ clinicId: clinicIdStr, doctor: userId, status: 'Admitted' });
 
       return res.json({
         myPatients: myPatients.length,
@@ -230,10 +241,10 @@ router.get('/stats', auth, async (req, res) => {
     if (role === 'receptionist') {
       const [totalPatients, pendingBills] = await Promise.all([
         Patient.countDocuments(patientClinicFilter),
-        Billing.countDocuments({ clinicId, paymentStatus: 'Pending' }),
+        Billing.countDocuments({ clinicId: clinicIdStr, paymentStatus: 'Pending' }),
       ]);
 
-      const recentAdmissions = await Admission.find({ clinicId, status: 'Admitted' })
+      const recentAdmissions = await Admission.find({ clinicId: clinicIdStr, status: 'Admitted' })
         .populate('patient', 'name patientId')
         .populate('doctor', 'name')
         .sort({ admissionDate: -1 })

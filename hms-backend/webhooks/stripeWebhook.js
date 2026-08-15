@@ -6,6 +6,10 @@ import Clinic from '../models/Clinic.js';
 import { getPlanByPriceId } from '../config/plans.js';
 
 
+if (process.env.NODE_ENV === 'production' && !process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is required in production — refusing to start with a mock billing key.');
+}
+
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_key_for_preventing_startup_crash_only', {
   apiVersion: '2024-04-10',
