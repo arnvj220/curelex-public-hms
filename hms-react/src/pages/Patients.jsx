@@ -173,7 +173,7 @@ export default function Patients() {
     e.preventDefault();
     const payload = {
       ...form, clinicId,
-      allergies: form.allergies ? form.allergies.split(',').map(s => s.trim()) : [],
+      allergies: form.allergies || '',
     };
     if (editId) {
       await API.put(`/patients/${editId}`, payload);
